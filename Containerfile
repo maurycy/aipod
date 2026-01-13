@@ -1,0 +1,148 @@
+FROM debian:stable
+
+ARG USERNAME
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Base system
+    base-files \
+    base-passwd \
+    coreutils \
+    util-linux \
+    debianutils \
+    bash \
+    bash-completion \
+    dash \
+    zsh \
+    login \
+    passwd \
+    sudo \
+    locales \
+    locales-all \
+    tzdata \
+    ca-certificates \
+    # Package management
+    apt \
+    apt-utils \
+    apt-file \
+    dpkg \
+    debian-archive-keyring \
+    gnupg \
+    gpgv \
+    # Build toolchain
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    ninja-build \
+    bison \
+    flex \
+    ccache \
+    sccache \
+    fakeroot \
+    dh-autoreconf \
+    autotools-dev \
+    # Version control
+    git \
+    git-lfs \
+    gh \
+    # Editors and text processing
+    vim \
+    sed \
+    grep \
+    diffutils \
+    mawk \
+    less \
+    man-db \
+    manpages \
+    # Compression
+    gzip \
+    bzip2 \
+    xz-utils \
+    lz4 \
+    zstd \
+    unzip \
+    tar \
+    pigz \
+    pbzip2 \
+    # Networking
+    curl \
+    wget \
+    openssh-client \
+    mosh \
+    iproute2 \
+    iputils-ping \
+    net-tools \
+    netbase \
+    netcat-traditional \
+    socat \
+    # Development libraries
+    libbz2-dev \
+    libffi-dev \
+    libicu-dev \
+    liblzma-dev \
+    libncurses-dev \
+    libnghttp2-dev \
+    libpq-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libssl-dev \
+    libudev-dev \
+    libyaml-dev \
+    libelf-dev \
+    zlib1g-dev \
+    libusb-dev \
+    # Languages and tools
+    perl \
+    protobuf-compiler \
+    jq \
+    sqlite3 \
+    # Debugging and profiling
+    strace \
+    valgrind \
+    htop \
+    procps \
+    pv \
+    # Terminal multiplexers
+    tmux \
+    screen \
+    # Misc utilities
+    file \
+    findutils \
+    tree \
+    rsync \
+    time \
+    bc \
+    hostname \
+    lsof \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user with sudo access
+RUN useradd -m -s /bin/zsh ${USERNAME} \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Update apt-file cache
+RUN apt-file update || true
+
+# Switch to user
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install chezmoi and apply dotfiles
+RUN sh -c "$(curl -fsLS get.chezmoi.io)" \
+    && bin/chezmoi init maurycy/dotfiles \
+    && bin/chezmoi apply
+
+# Set default shell to zsh
+SHELL ["/bin/zsh", "-c"]
+ENV SHELL=/bin/zsh
+
+CMD ["/bin/zsh"]

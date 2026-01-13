@@ -2,7 +2,8 @@
 
 IMAGE_NAME := $(or $(HOSTNAME),aipod)
 CONTAINER_NAME := $(or $(HOSTNAME),aipod)
-USERNAME := $(or $(USERNAME),aipod)
+USERNAME := $(or $(USERNAME),developer)
+CHEZMOI_DOTFILES_REPO := $(CHEZMOI_DOTFILES_REPO)
 
 .PHONY: all run build clean stop rebuild
 
@@ -17,11 +18,11 @@ run: build
 
 build:
 	@if ! podman image exists $(IMAGE_NAME) 2>/dev/null; then \
-		podman build --build-arg USERNAME=$(USERNAME) -t $(IMAGE_NAME) -f Containerfile .; \
+		podman build --build-arg USERNAME=$(USERNAME) --build-arg CHEZMOI_DOTFILES_REPO=$(CHEZMOI_DOTFILES_REPO) -t $(IMAGE_NAME) -f Containerfile .; \
 	fi
 
 rebuild:
-	podman build --build-arg USERNAME=$(USERNAME) -t $(IMAGE_NAME) -f Containerfile .
+	podman build --build-arg USERNAME=$(USERNAME) --build-arg CHEZMOI_DOTFILES_REPO=$(CHEZMOI_DOTFILES_REPO) -t $(IMAGE_NAME) -f Containerfile .
 
 clean: stop
 	-podman rm $(CONTAINER_NAME) 2>/dev/null

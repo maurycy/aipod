@@ -1,0 +1,3 @@
+USERNAME := developer
+HOSTNAME := aipod
+CHEZMOI_DOTFILES_REPO := maurycy/dotfiles

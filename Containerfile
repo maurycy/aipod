@@ -1,6 +1,7 @@
 FROM debian:stable
 
 ARG USERNAME
+ARG CHEZMOI_DOTFILES_REPO
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -136,10 +137,12 @@ WORKDIR /home/${USERNAME}
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install chezmoi and apply dotfiles
-RUN sh -c "$(curl -fsLS get.chezmoi.io)" \
-    && bin/chezmoi init maurycy/dotfiles \
-    && bin/chezmoi apply
+# Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)
+RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
+        sh -c "$(curl -fsLS get.chezmoi.io)" \
+        && bin/chezmoi init ${CHEZMOI_DOTFILES_REPO} \
+        && bin/chezmoi apply; \
+    fi
 
 # Set default shell to zsh
 SHELL ["/bin/zsh", "-c"]

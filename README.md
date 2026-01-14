@@ -7,7 +7,7 @@ This is a _lightly opinionated_ configuration that I'm using for yoloing AI agen
 ## Usage
 
 ```bash
-$ make
+$ aipod
 [... 5 minutes later ... ]
 aipod% ls -la
 total 76
@@ -31,7 +31,7 @@ All necessary developer packages are installed, so `curl` one-liners work.
 If you want to remove the container (warning: all your data will be lost), just:
 
 ```bash
-make clean
+aipod clean
 ```
 
 ## Requirements

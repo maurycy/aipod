@@ -1,13 +1,14 @@
 -include container.conf
 
-IMAGE_NAME := $(or $(HOSTNAME),aipod)
-CONTAINER_NAME := $(or $(HOSTNAME),aipod)
-USERNAME := $(or $(USERNAME),developer)
-CHEZMOI_DOTFILES_REPO := $(CHEZMOI_DOTFILES_REPO)
+IMAGE_NAME ?= $(HOSTNAME)
+IMAGE_NAME ?= aipod
+CONTAINER_NAME ?= $(HOSTNAME)
+CONTAINER_NAME ?= aipod
+USERNAME ?= developer
 
-USE_RUST := $(or $(USE_RUST),true)
-USE_NPM := $(or $(USE_NPM),true)
-USE_UV := $(or $(USE_UV),true)
+USE_RUST ?= true
+USE_NPM ?= true
+USE_UV ?= true
 
 .PHONY: all run build clean stop rebuild
 

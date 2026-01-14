@@ -1,0 +1,287 @@
+#!/bin/sh
+
+# aipod - container management script
+# style inspired by https://get.chezmoi.io
+
+set -e
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aipod"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/aipod"
+MOUNTS_FILE="${CONFIG_DIR}/mounts"
+
+# Defaults (set after config is loaded)
+IMAGE_NAME=""
+CONTAINER_NAME=""
+USERNAME=""
+CHEZMOI_DOTFILES_REPO=""
+USE_RUST="true"
+USE_NPM="true"
+USE_UV="true"
+
+usage() {
+	cat <<EOF
+aipod: manage development containers
+
+Usage: aipod [command] [options]
+
+Commands:
+    (none)      Run container interactively (start existing or create new)
+    up          Same as running without arguments
+    down        Stop the container
+    clean       Remove container, image, and mounts config
+    sh          Execute shell in running container
+    mount       Add volume mount and recreate container
+    unmount     Remove volume mount and recreate container
+    help        Show this help message
+
+Mount usage:
+    aipod mount                     Mount current directory to home
+    aipod mount <path>              Mount path to home/basename
+    aipod mount <path> <remote>     Mount path to specified remote path
+    aipod unmount                   Remove all mounts
+    aipod unmount <path>            Remove mount for specified path
+EOF
+	exit 0
+}
+
+log_info() {
+	printf 'info %s\n' "$*" 1>&2
+}
+
+log_err() {
+	printf 'error %s\n' "$*" 1>&2
+}
+
+log_crit() {
+	printf 'critical %s\n' "$*" 1>&2
+}
+
+is_command() {
+	type "$1" >/dev/null 2>&1
+}
+
+# Find data directory containing container.conf and Containerfile
+# Checks script directory first, then XDG data directory
+find_data_dir() {
+	script_dir="$(cd "$(dirname "$0")" && pwd)"
+	if [ -f "${script_dir}/Containerfile" ]; then
+		printf '%s' "${script_dir}"
+		return 0
+	fi
+	if [ -f "${DATA_DIR}/Containerfile" ]; then
+		printf '%s' "${DATA_DIR}"
+		return 0
+	fi
+	log_crit "cannot find Containerfile in ${script_dir} or ${DATA_DIR}"
+	exit 1
+}
+
+load_config() {
+	data_dir="$(find_data_dir)"
+	if [ -f "${data_dir}/container.conf" ]; then
+		# shellcheck disable=SC1091
+		. "${data_dir}/container.conf"
+	fi
+	# Apply defaults - HOSTNAME from config becomes CONTAINER_NAME and IMAGE_NAME
+	CONTAINER_NAME="${HOSTNAME:-aipod}"
+	IMAGE_NAME="${HOSTNAME:-aipod}"
+	USERNAME="${USERNAME:-developer}"
+}
+
+ensure_config_dir() {
+	if [ ! -d "${CONFIG_DIR}" ]; then
+		mkdir -p "${CONFIG_DIR}"
+	fi
+}
+
+read_mounts() {
+	if [ -f "${MOUNTS_FILE}" ]; then
+		cat "${MOUNTS_FILE}"
+	fi
+}
+
+build_volume_args() {
+	volume_args=""
+	while IFS= read -r line; do
+		[ -z "${line}" ] && continue
+		volume_args="${volume_args} -v ${line}"
+	done <<EOF
+$(read_mounts)
+EOF
+	printf '%s' "${volume_args}"
+}
+
+container_exists() {
+	podman container exists "${CONTAINER_NAME}" 2>/dev/null
+}
+
+container_running() {
+	[ "$(podman container inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null)" = "true" ]
+}
+
+image_exists() {
+	podman image exists "${IMAGE_NAME}" 2>/dev/null
+}
+
+cmd_build() {
+	data_dir="$(find_data_dir)"
+	if ! image_exists; then
+		log_info "building image ${IMAGE_NAME}"
+		podman build \
+			--build-arg USERNAME="${USERNAME}" \
+			--build-arg CHEZMOI_DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO}" \
+			--build-arg USE_RUST="${USE_RUST}" \
+			--build-arg USE_NPM="${USE_NPM}" \
+			--build-arg USE_UV="${USE_UV}" \
+			-t "${IMAGE_NAME}" \
+			-f "${data_dir}/Containerfile" \
+			"${data_dir}"
+	fi
+}
+
+cmd_run() {
+	cmd_build
+	volume_args="$(build_volume_args)"
+	if container_exists; then
+		log_info "starting existing container ${CONTAINER_NAME}"
+		podman start -ai "${CONTAINER_NAME}"
+	else
+		log_info "creating and starting container ${CONTAINER_NAME}"
+		# shellcheck disable=SC2086
+		podman run -it \
+			--hostname "${CONTAINER_NAME}" \
+			--name "${CONTAINER_NAME}" \
+			${volume_args} \
+			"${IMAGE_NAME}"
+	fi
+}
+
+cmd_down() {
+	if container_exists; then
+		log_info "stopping container ${CONTAINER_NAME}"
+		podman stop "${CONTAINER_NAME}" 2>/dev/null || true
+	else
+		log_info "container ${CONTAINER_NAME} does not exist"
+	fi
+}
+
+cmd_clean() {
+	log_info "stopping container ${CONTAINER_NAME}"
+	podman stop "${CONTAINER_NAME}" 2>/dev/null || true
+	log_info "removing container ${CONTAINER_NAME}"
+	podman rm "${CONTAINER_NAME}" 2>/dev/null || true
+	log_info "removing image ${IMAGE_NAME}"
+	podman rmi "${IMAGE_NAME}" 2>/dev/null || true
+	log_info "removing mounts config"
+	rm -f "${MOUNTS_FILE}"
+}
+
+cmd_sh() {
+	if ! container_exists; then
+		log_err "container ${CONTAINER_NAME} does not exist"
+		exit 1
+	fi
+	if ! container_running; then
+		log_info "starting container ${CONTAINER_NAME}"
+		podman start "${CONTAINER_NAME}"
+	fi
+	podman exec -it "${CONTAINER_NAME}" /bin/zsh
+}
+
+cmd_mount() {
+	local_path="${1:-$(pwd)}"
+	local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
+	basename="$(basename "${local_path}")"
+	remote_path="${2:-/home/${USERNAME}/${basename}}"
+
+	ensure_config_dir
+
+	# Check if mount already exists
+	if [ -f "${MOUNTS_FILE}" ] && grep -q "^${local_path}:" "${MOUNTS_FILE}" 2>/dev/null; then
+		log_info "mount for ${local_path} already exists"
+		return 0
+	fi
+
+	log_info "adding mount ${local_path}:${remote_path}"
+	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
+
+	# Recreate container if it exists
+	if container_exists; then
+		log_info "recreating container with new mount"
+		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+		cmd_run
+	fi
+}
+
+cmd_unmount() {
+	if [ ! -f "${MOUNTS_FILE}" ]; then
+		log_info "no mounts configured"
+		return 0
+	fi
+
+	if [ -z "${1:-}" ]; then
+		log_info "removing all mounts"
+		rm -f "${MOUNTS_FILE}"
+	else
+		local_path="${1}"
+		local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
+		log_info "removing mount for ${local_path}"
+		grep -v "^${local_path}:" "${MOUNTS_FILE}" > "${MOUNTS_FILE}.tmp" 2>/dev/null || true
+		mv "${MOUNTS_FILE}.tmp" "${MOUNTS_FILE}"
+		# Remove file if empty
+		if [ ! -s "${MOUNTS_FILE}" ]; then
+			rm -f "${MOUNTS_FILE}"
+		fi
+	fi
+
+	# Recreate container if it exists
+	if container_exists; then
+		log_info "recreating container without mount"
+		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+		cmd_run
+	fi
+}
+
+main() {
+	# Check for podman
+	if ! is_command podman; then
+		log_crit "podman is not installed"
+		exit 1
+	fi
+
+	# Load configuration
+	load_config
+
+	cmd="${1:-}"
+	shift 2>/dev/null || true
+
+	case "${cmd}" in
+	"" | up)
+		cmd_run
+		;;
+	down)
+		cmd_down
+		;;
+	clean)
+		cmd_clean
+		;;
+	sh)
+		cmd_sh
+		;;
+	mount)
+		cmd_mount "$@"
+		;;
+	unmount)
+		cmd_unmount "$@"
+		;;
+	help | -h | --help)
+		usage
+		;;
+	*)
+		log_err "unknown command: ${cmd}"
+		usage
+		;;
+	esac
+}
+
+main "$@"

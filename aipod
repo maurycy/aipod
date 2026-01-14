@@ -143,6 +143,7 @@ commit_snapshot() {
 	if container_exists; then
 		log_info "committing container state"
 		podman commit --quiet "${CONTAINER_NAME}" "${IMAGE_NAME}:snapshot" >/dev/null
+		podman rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 	fi
 }
 
@@ -437,7 +438,7 @@ main() {
 	down)
 		cmd_down
 		;;
-	clean)
+	clean | purge)
 		cmd_clean
 		;;
 	sh)
@@ -452,10 +453,10 @@ main() {
 	unmount | umount)
 		cmd_unmount "$@"
 		;;
-	expose)
+	expose | bind | listen)
 		cmd_expose "$@"
 		;;
-	close)
+	close | unbind)
 		cmd_close "$@"
 		;;
 	config)

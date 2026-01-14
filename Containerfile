@@ -143,6 +143,12 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Install ripgrep via cargo
 RUN $HOME/.cargo/bin/cargo install ripgrep
 
+# Install nvm and Node.js
+RUN export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
+    && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
+    && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+    && nvm install 25
+
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)
 RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
         sh -c "$(curl -fsLS get.chezmoi.io)" \

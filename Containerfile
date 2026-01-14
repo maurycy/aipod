@@ -135,7 +135,7 @@ USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 # Set PATH to include user-installed tools
-ENV PATH="/home/${USERNAME}/.local/bin:/home/${USERNAME}/.cargo/bin:/home/${USERNAME}/.nvm/versions/node/*/bin:$PATH"
+ENV PATH="/home/${USERNAME}/.local/bin:/home/${USERNAME}/.cargo/bin:$PATH"
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh

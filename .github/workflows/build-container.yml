@@ -11,6 +11,8 @@ on:
     paths:
       - 'Containerfile'
       - '.github/workflows/build-container.yml'
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
 
 jobs:
   build-and-test:

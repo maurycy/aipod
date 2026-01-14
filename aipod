@@ -352,7 +352,7 @@ cmd_exec() {
 
 cmd_sync() {
 	if [ -z "${1:-}" ]; then
-		log_err "usage: aipod sync <file|directory>"
+		log_err "usage: aipod cp <file|directory>"
 		exit 1
 	fi
 

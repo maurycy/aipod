@@ -41,7 +41,7 @@ Commands:
     port        Expose container port
     close       Remove port mapping
 
-    config      Edit container.conf
+    config      Edit aipod.conf
     help        Show this help
 
 Mounting directories:
@@ -82,7 +82,7 @@ is_command() {
 	type "$1" >/dev/null 2>&1
 }
 
-# Find data directory containing container.conf and Containerfile
+# Find data directory containing aipod.conf and Containerfile
 # Checks script directory first, then XDG data directory
 find_data_dir() {
 	script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -100,9 +100,9 @@ find_data_dir() {
 
 load_config() {
 	data_dir="$(find_data_dir)"
-	if [ -f "${data_dir}/container.conf" ]; then
+	if [ -f "${data_dir}/aipod.conf" ]; then
 		# shellcheck disable=SC1091
-		. "${data_dir}/container.conf"
+		. "${data_dir}/aipod.conf"
 	fi
 	# Apply defaults - HOSTNAME from config becomes CONTAINER_NAME and IMAGE_NAME
 	CONTAINER_NAME="${HOSTNAME:-aipod}"
@@ -527,7 +527,7 @@ cmd_close() {
 cmd_config() {
 	editor="${EDITOR:-vi}"
 	data_dir="$(find_data_dir)"
-	"${editor}" "${data_dir}/container.conf"
+	"${editor}" "${data_dir}/aipod.conf"
 }
 
 cmd_status() {

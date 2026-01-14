@@ -94,21 +94,9 @@ ensure_config_dir() {
 	fi
 }
 
-read_mounts() {
-	if [ -f "${MOUNTS_FILE}" ]; then
-		cat "${MOUNTS_FILE}"
-	fi
-}
-
-build_volume_args() {
-	volume_args=""
-	while IFS= read -r line; do
-		[ -z "${line}" ] && continue
-		volume_args="${volume_args} -v ${line}"
-	done <<EOF
-$(read_mounts)
-EOF
-	printf '%s' "${volume_args}"
+mount_exists() {
+	[ -f "${MOUNTS_FILE}" ] || return 1
+	awk -F: -v p="$1" '$1==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
 }
 
 container_exists() {
@@ -141,19 +129,34 @@ cmd_build() {
 
 cmd_run() {
 	cmd_build
-	volume_args="$(build_volume_args)"
+	set --
+	if [ -f "${MOUNTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			set -- "$@" -v "$line"
+		done < "${MOUNTS_FILE}"
+	fi
 	if container_exists; then
-		log_info "starting existing container ${CONTAINER_NAME}"
-		podman start -ai "${CONTAINER_NAME}"
+		if container_running; then
+			log_info "opening shell in running container ${CONTAINER_NAME}"
+		else
+			log_info "starting existing container ${CONTAINER_NAME}"
+			podman start "${CONTAINER_NAME}" >/dev/null || true
+		fi
 	else
-		log_info "creating and starting container ${CONTAINER_NAME}"
-		# shellcheck disable=SC2086
-		podman run -it \
+		log_info "creating container ${CONTAINER_NAME}"
+		podman run -d \
 			--hostname "${CONTAINER_NAME}" \
 			--name "${CONTAINER_NAME}" \
-			${volume_args} \
-			"${IMAGE_NAME}"
+			"$@" \
+			"${IMAGE_NAME}" \
+			tail -f /dev/null
 	fi
+	if ! container_running; then
+		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+		exit 1
+	fi
+	podman exec -it "${CONTAINER_NAME}" /bin/zsh
 }
 
 cmd_down() {
@@ -183,7 +186,11 @@ cmd_sh() {
 	fi
 	if ! container_running; then
 		log_info "starting container ${CONTAINER_NAME}"
-		podman start "${CONTAINER_NAME}"
+		podman start "${CONTAINER_NAME}" >/dev/null || true
+	fi
+	if ! container_running; then
+		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+		exit 1
 	fi
 	podman exec -it "${CONTAINER_NAME}" /bin/zsh
 }
@@ -197,7 +204,7 @@ cmd_mount() {
 	ensure_config_dir
 
 	# Check if mount already exists
-	if [ -f "${MOUNTS_FILE}" ] && grep -q "^${local_path}:" "${MOUNTS_FILE}" 2>/dev/null; then
+	if mount_exists "${local_path}"; then
 		log_info "mount for ${local_path} already exists"
 		return 0
 	fi
@@ -226,8 +233,14 @@ cmd_unmount() {
 		local_path="${1}"
 		local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
 		log_info "removing mount for ${local_path}"
-		grep -v "^${local_path}:" "${MOUNTS_FILE}" > "${MOUNTS_FILE}.tmp" 2>/dev/null || true
-		mv "${MOUNTS_FILE}.tmp" "${MOUNTS_FILE}"
+		tmp_file="${MOUNTS_FILE}.tmp"
+		if awk -F: -v p="${local_path}" '$1!=p' "${MOUNTS_FILE}" > "${tmp_file}"; then
+			mv "${tmp_file}" "${MOUNTS_FILE}"
+		else
+			rm -f "${tmp_file}"
+			log_err "failed to update mounts file"
+			exit 1
+		fi
 		# Remove file if empty
 		if [ ! -s "${MOUNTS_FILE}" ]; then
 			rm -f "${MOUNTS_FILE}"

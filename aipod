@@ -352,7 +352,7 @@ cmd_exec() {
 	}
 
 	ensure_running
-	podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" "$@"
+	podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
 }
 
 cmd_sync() {

@@ -284,7 +284,7 @@ main() {
 	mount)
 		cmd_mount "$@"
 		;;
-	unmount)
+	unmount | umount)
 		cmd_unmount "$@"
 		;;
 	help | -h | --help)

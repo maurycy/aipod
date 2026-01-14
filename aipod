@@ -8,6 +8,7 @@ set -e
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aipod"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/aipod"
 MOUNTS_FILE="${CONFIG_DIR}/mounts"
+PORTS_FILE="${CONFIG_DIR}/ports"
 
 # Defaults (set after config is loaded)
 IMAGE_NAME=""
@@ -30,8 +31,12 @@ Commands:
     down        Stop the container
     clean       Remove container, image, and mounts config
     sh          Execute shell in running container
+    status      Show container status
     mount       Add volume mount and recreate container
     unmount     Remove volume mount and recreate container
+    expose      Expose container port to host
+    close       Remove port mapping
+    config      Edit container.conf in \$EDITOR
     help        Show this help message
 
 Mount usage:
@@ -40,6 +45,12 @@ Mount usage:
     aipod mount <path> <remote>     Mount path to specified remote path
     aipod unmount                   Remove all mounts
     aipod unmount <path>            Remove mount for specified path
+
+Port usage:
+    aipod expose <port>             Expose container port to same host port
+    aipod expose <port> <host>      Expose container port to specified host port
+    aipod close <port>              Remove port mapping for container port
+    aipod close                     Remove all port mappings
 EOF
 	exit 0
 }
@@ -99,6 +110,11 @@ mount_exists() {
 	awk -F: -v p="$1" '$1==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
 }
 
+port_exists() {
+	[ -f "${PORTS_FILE}" ] || return 1
+	awk -F: -v p="$1" '$2==p {found=1} END{exit !found}' "${PORTS_FILE}"
+}
+
 container_exists() {
 	podman container exists "${CONTAINER_NAME}" 2>/dev/null
 }
@@ -135,6 +151,12 @@ cmd_run() {
 			[ -z "${line}" ] && continue
 			set -- "$@" -v "$line"
 		done < "${MOUNTS_FILE}"
+	fi
+	if [ -f "${PORTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			set -- "$@" -p "$line"
+		done < "${PORTS_FILE}"
 	fi
 	if container_exists; then
 		if container_running; then
@@ -255,6 +277,115 @@ cmd_unmount() {
 	fi
 }
 
+cmd_expose() {
+	container_port="${1:-}"
+	if [ -z "${container_port}" ]; then
+		log_err "usage: aipod expose <port> [host_port]"
+		exit 1
+	fi
+	host_port="${2:-${container_port}}"
+
+	ensure_config_dir
+
+	# Check if port already exposed
+	if port_exists "${container_port}"; then
+		log_info "port ${container_port} already exposed"
+		return 0
+	fi
+
+	log_info "exposing port ${container_port} to host port ${host_port}"
+	printf '%s:%s\n' "${host_port}" "${container_port}" >> "${PORTS_FILE}"
+
+	# Recreate container if it exists
+	if container_exists; then
+		log_info "recreating container with new port"
+		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+		cmd_run
+	fi
+}
+
+cmd_close() {
+	if [ ! -f "${PORTS_FILE}" ]; then
+		log_info "no ports exposed"
+		return 0
+	fi
+
+	if [ -z "${1:-}" ]; then
+		log_info "removing all port mappings"
+		rm -f "${PORTS_FILE}"
+	else
+		container_port="${1}"
+		log_info "closing port ${container_port}"
+		tmp_file="${PORTS_FILE}.tmp"
+		if awk -F: -v p="${container_port}" '$2!=p' "${PORTS_FILE}" > "${tmp_file}"; then
+			mv "${tmp_file}" "${PORTS_FILE}"
+		else
+			rm -f "${tmp_file}"
+			log_err "failed to update ports file"
+			exit 1
+		fi
+		# Remove file if empty
+		if [ ! -s "${PORTS_FILE}" ]; then
+			rm -f "${PORTS_FILE}"
+		fi
+	fi
+
+	# Recreate container if it exists
+	if container_exists; then
+		log_info "recreating container without port"
+		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+		cmd_run
+	fi
+}
+
+cmd_config() {
+	editor="${EDITOR:-vi}"
+	data_dir="$(find_data_dir)"
+	"${editor}" "${data_dir}/container.conf"
+}
+
+cmd_status() {
+	# Container state
+	if container_exists; then
+		if container_running; then
+			printf 'container: running\n'
+		else
+			printf 'container: stopped\n'
+		fi
+	else
+		printf 'container: not created\n'
+	fi
+
+	# Image state
+	if image_exists; then
+		printf 'image:     %s\n' "${IMAGE_NAME}"
+	else
+		printf 'image:     not built\n'
+	fi
+
+	# Mounts
+	printf 'mounts:\n'
+	if [ -f "${MOUNTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			printf '  %s\n' "$line"
+		done < "${MOUNTS_FILE}"
+	else
+		printf '  (none)\n'
+	fi
+
+	# Ports
+	printf 'ports:\n'
+	if [ -f "${PORTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			printf '  %s\n' "$line"
+		done < "${PORTS_FILE}"
+	else
+		printf '  (none)\n'
+	fi
+}
+
 main() {
 	# Check for podman
 	if ! is_command podman; then
@@ -281,11 +412,23 @@ main() {
 	sh)
 		cmd_sh
 		;;
+	status)
+		cmd_status
+		;;
 	mount)
 		cmd_mount "$@"
 		;;
 	unmount | umount)
 		cmd_unmount "$@"
+		;;
+	expose)
+		cmd_expose "$@"
+		;;
+	close)
+		cmd_close "$@"
+		;;
+	config)
+		cmd_config
 		;;
 	help | -h | --help)
 		usage

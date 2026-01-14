@@ -42,7 +42,7 @@ Commands:
 Mount usage:
     aipod mount                     Mount current directory to home
     aipod mount <path>              Mount path to home/basename
-    aipod mount <path> <remote>     Mount path to specified remote path
+    aipod mount <path> <remote>     Mount path to specified container path
     aipod unmount                   Remove all mounts
     aipod unmount <path>            Remove mount for specified path
 
@@ -451,7 +451,7 @@ main() {
 	"" | up)
 		cmd_run
 		;;
-	down)
+	down | stop)
 		cmd_down
 		;;
 	clean | purge)

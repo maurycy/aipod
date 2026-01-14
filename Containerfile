@@ -154,9 +154,9 @@ RUN export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)
 RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
-        sh -c "$(curl -fsLS get.chezmoi.io)" \
-        && bin/chezmoi init ${CHEZMOI_DOTFILES_REPO} \
-        && bin/chezmoi apply; \
+        sh -c "$(curl -fsLS get.chezmoi.io)" -- -b $HOME/.local/bin \
+        && $HOME/.local/bin/chezmoi init ${CHEZMOI_DOTFILES_REPO} \
+        && $HOME/.local/bin/chezmoi apply; \
     fi
 
 # Set default shell to zsh

@@ -40,7 +40,7 @@ aipod clean
 
 ## Configuration
 
-Customize `container.conf` to your liking:
+Customize `aipod.conf` to your liking:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

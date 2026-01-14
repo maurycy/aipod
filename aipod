@@ -20,6 +20,7 @@ USE_NPM="true"
 USE_UV="true"
 USE_CLAUDE_CODE="true"
 USE_CODEX="true"
+CONTAINERFILE=""
 
 usage() {
 	cat <<EOF
@@ -28,20 +29,23 @@ aipod: manage development containers
 Usage: aipod [command] [options]
 
 Commands:
-    (none)      Run container interactively (start existing or create new)
-    up          Same as running without arguments
+    up          Start container interactively (default if no command given)
     down        Stop the container
-    clean       Remove container, image, mounts and ports config
-    sh          Execute shell in running container
     status      Show container status
-    mount       Add volume mount and recreate container
-    unmount     Remove volume mount and recreate container
-    expose      Expose container port to host
-    close       Remove port mapping
-    config      Edit container.conf in \$EDITOR
-    help        Show this help message
+    clean       Remove container, image, and config
 
-Mount usage:
+    run         Run command in container
+    cp          Copy file/directory to container
+
+    mount       Add volume mount
+    unmount     Remove volume mount
+    port        Expose container port
+    close       Remove port mapping
+
+    config      Edit aipod.conf
+    help        Show this help
+
+Mounting directories:
     aipod mount                     Mount current directory to home
     aipod mount <path>              Mount path to home/basename
     aipod mount <path> <remote>     Mount path to specified container path
@@ -49,10 +53,16 @@ Mount usage:
     aipod unmount <path>            Remove mount for specified path
 
 Port usage:
-    aipod expose <port>             Expose container port to same host port
-    aipod expose <port> <host>      Expose container port to specified host port
+    aipod port <port>               Expose container port to same host port
+    aipod port <port> <host>        Expose container port to specified host port
     aipod close <port>              Remove port mapping for container port
     aipod close                     Remove all port mappings
+
+Run usage:
+    aipod run <command> [args...]   Run command in container at translated CWD
+
+Copying:
+    aipod cp <file|directory>       Copy file/directory to container
 EOF
 	exit 0
 }
@@ -73,32 +83,48 @@ is_command() {
 	type "$1" >/dev/null 2>&1
 }
 
-# Find data directory containing container.conf and Containerfile
+# Find config directory containing aipod.conf
 # Checks script directory first, then XDG data directory
-find_data_dir() {
+find_config_dir() {
 	script_dir="$(cd "$(dirname "$0")" && pwd)"
-	if [ -f "${script_dir}/Containerfile" ]; then
+	if [ -f "${script_dir}/aipod.conf" ]; then
 		printf '%s' "${script_dir}"
 		return 0
 	fi
-	if [ -f "${DATA_DIR}/Containerfile" ]; then
+	if [ -f "${DATA_DIR}/aipod.conf" ]; then
 		printf '%s' "${DATA_DIR}"
 		return 0
 	fi
-	log_crit "cannot find Containerfile in ${script_dir} or ${DATA_DIR}"
-	exit 1
+	# No config found, return script directory as default
+	printf '%s' "${script_dir}"
 }
 
 load_config() {
-	data_dir="$(find_data_dir)"
-	if [ -f "${data_dir}/container.conf" ]; then
+	config_dir="$(find_config_dir)"
+	if [ -f "${config_dir}/aipod.conf" ]; then
 		# shellcheck disable=SC1091
-		. "${data_dir}/container.conf"
+		. "${config_dir}/aipod.conf"
 	fi
 	# Apply defaults - HOSTNAME from config becomes CONTAINER_NAME and IMAGE_NAME
 	CONTAINER_NAME="${HOSTNAME:-aipod}"
 	IMAGE_NAME="${HOSTNAME:-aipod}"
 	USERNAME="${USERNAME:-developer}"
+
+	# Resolve CONTAINERFILE: config value, or search script_dir/DATA_DIR
+	if [ -z "${CONTAINERFILE}" ]; then
+		script_dir="$(cd "$(dirname "$0")" && pwd)"
+		if [ -f "${script_dir}/Containerfile" ]; then
+			CONTAINERFILE="${script_dir}/Containerfile"
+		elif [ -f "${DATA_DIR}/Containerfile" ]; then
+			CONTAINERFILE="${DATA_DIR}/Containerfile"
+		fi
+	fi
+
+	# Validate Containerfile exists
+	if [ ! -f "${CONTAINERFILE}" ]; then
+		log_crit "Containerfile not found: ${CONTAINERFILE:-<not set>}"
+		exit 1
+	fi
 }
 
 ensure_config_dir() {
@@ -141,6 +167,83 @@ run_image() {
 	fi
 }
 
+# Translate host path to container path using mounts file
+# Returns 0 and prints container path if found, returns 1 if not covered by any mount
+# Resolves symlinks on both input path and mount paths for correct matching
+host_to_container_path() {
+	host_path="$1"
+	[ -f "${MOUNTS_FILE}" ] || return 1
+
+	# Resolve symlinks in input path (must be a directory for CWD use case)
+	resolved_host="$(cd -P "${host_path}" 2>/dev/null && pwd -P)" || return 1
+
+	while IFS=: read -r local_dir remote_dir; do
+		[ -z "${local_dir}" ] && continue
+
+		# Resolve symlinks in mount path
+		resolved_local="$(cd -P "${local_dir}" 2>/dev/null && pwd -P)" || continue
+
+		case "${resolved_host}" in
+			"${resolved_local}")
+				printf '%s\n' "${remote_dir}"
+				return 0
+				;;
+			"${resolved_local}"/*)
+				relative="${resolved_host#"${resolved_local}"}"
+				printf '%s%s\n' "${remote_dir}" "${relative}"
+				return 0
+				;;
+		esac
+	done < "${MOUNTS_FILE}"
+	return 1
+}
+
+# Ensure container is running (start if needed, create if doesn't exist)
+ensure_running() {
+	if ! container_exists; then
+		cmd_run_headless
+	elif ! container_running; then
+		log_info "starting container ${CONTAINER_NAME}"
+		podman start "${CONTAINER_NAME}" >/dev/null || true
+	fi
+	if ! container_running; then
+		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+		exit 1
+	fi
+}
+
+# Start container without opening interactive shell
+cmd_run_headless() {
+	cmd_build
+	set --
+	if [ -f "${MOUNTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			set -- "$@" -v "$line"
+		done < "${MOUNTS_FILE}"
+	fi
+	if [ -f "${PORTS_FILE}" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			set -- "$@" -p "$line"
+		done < "${PORTS_FILE}"
+	fi
+	if container_exists; then
+		if ! container_running; then
+			podman start "${CONTAINER_NAME}" >/dev/null || true
+		fi
+	else
+		log_info "creating container ${CONTAINER_NAME}"
+		podman run -d \
+			--replace \
+			--hostname "${CONTAINER_NAME}" \
+			--name "${CONTAINER_NAME}" \
+			"$@" \
+			"$(run_image)" \
+			tail -f /dev/null
+	fi
+}
+
 commit_snapshot() {
 	if container_exists; then
 		log_info "committing container state"
@@ -150,7 +253,6 @@ commit_snapshot() {
 }
 
 cmd_build() {
-	data_dir="$(find_data_dir)"
 	if ! image_exists; then
 		log_info "building image ${IMAGE_NAME}"
 		podman build \
@@ -162,8 +264,8 @@ cmd_build() {
 			--build-arg USE_CLAUDE_CODE="${USE_CLAUDE_CODE}" \
 			--build-arg USE_CODEX="${USE_CODEX}" \
 			-t "${IMAGE_NAME}" \
-			-f "${data_dir}/Containerfile" \
-			"${data_dir}"
+			-f "${CONTAINERFILE}" \
+			"$(dirname "${CONTAINERFILE}")"
 	fi
 }
 
@@ -230,20 +332,48 @@ cmd_clean() {
 	rm -f "${PORTS_FILE}"
 }
 
-cmd_sh() {
-	if ! container_exists; then
-		log_err "container ${CONTAINER_NAME} does not exist"
+cmd_exec() {
+	if [ $# -eq 0 ]; then
+		log_err "usage: aipod run <command> [args...]"
 		exit 1
 	fi
-	if ! container_running; then
-		log_info "starting container ${CONTAINER_NAME}"
-		podman start "${CONTAINER_NAME}" >/dev/null || true
+
+	ensure_running
+
+	cwd="$(pwd -P)"
+	container_cwd="$(host_to_container_path "${cwd}")"
+
+	if [ -n "${container_cwd}" ]; then
+		podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
+	else
+		podman exec -it "${CONTAINER_NAME}" zsh -ic "$*"
 	fi
-	if ! container_running; then
-		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+}
+
+cmd_sync() {
+	if [ -z "${1:-}" ]; then
+		log_err "usage: aipod cp <file|directory>"
 		exit 1
 	fi
-	podman exec -it "${CONTAINER_NAME}" /bin/zsh
+
+	# Resolve to absolute path
+	if [ -d "$1" ]; then
+		src="$(cd "$1" && pwd)"
+	elif [ -f "$1" ]; then
+		src="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+	else
+		log_err "path does not exist: $1"
+		exit 1
+	fi
+
+	# Get container destination - use mount path if available, else default to home
+	container_path="$(host_to_container_path "${src}")" || {
+		container_path="/home/${USERNAME}/$(basename "${src}")"
+	}
+
+	ensure_running
+	log_info "syncing ${src} -> ${container_path}"
+	podman cp "${src}" "${CONTAINER_NAME}:${container_path}"
 }
 
 cmd_mount() {
@@ -251,6 +381,12 @@ cmd_mount() {
 	local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
 	basename="$(basename "${local_path}")"
 	remote_path="${2:-/home/${USERNAME}/${basename}}"
+
+	# Prevent mounting home directory
+	if [ "${local_path}" = "${HOME}" ]; then
+		log_err "mounting your home directory is a bad idea, and goes against the purpose of containerization"
+		exit 1
+	fi
 
 	ensure_config_dir
 
@@ -260,7 +396,7 @@ cmd_mount() {
 		return 0
 	fi
 
-	log_info "adding mount ${local_path}:${remote_path}"
+	log_info "mounting ${local_path} to ${remote_path}"
 	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
 
 	# Recreate container if it exists
@@ -385,8 +521,8 @@ cmd_close() {
 
 cmd_config() {
 	editor="${EDITOR:-vi}"
-	data_dir="$(find_data_dir)"
-	"${editor}" "${data_dir}/container.conf"
+	config_dir="$(find_config_dir)"
+	"${editor}" "${config_dir}/aipod.conf"
 }
 
 cmd_status() {
@@ -441,7 +577,7 @@ cmd_status() {
 main() {
 	# Check for podman
 	if ! is_command podman; then
-		log_crit "podman is not installed"
+		log_crit "podman is not installed - see https://podman.io/docs/installation"
 		exit 1
 	fi
 
@@ -452,7 +588,7 @@ main() {
 	shift 2>/dev/null || true
 
 	case "${cmd}" in
-	"" | up)
+	"" | up | start)
 		cmd_run
 		;;
 	down | stop)
@@ -461,10 +597,13 @@ main() {
 	clean | purge)
 		cmd_clean
 		;;
-	sh)
-		cmd_sh
+	run)
+		cmd_exec "$@"
 		;;
-	status)
+	cp | sync)
+		cmd_sync "$@"
+		;;
+	status | info | ps)
 		cmd_status
 		;;
 	mount)
@@ -473,7 +612,7 @@ main() {
 	unmount | umount)
 		cmd_unmount "$@"
 		;;
-	expose | bind | listen)
+	port | expose | bind | listen)
 		cmd_expose "$@"
 		;;
 	close | unbind)
@@ -482,7 +621,7 @@ main() {
 	config)
 		cmd_config
 		;;
-	help | -h | --help)
+	help | usage | -h | --help)
 		usage
 		;;
 	*)

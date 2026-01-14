@@ -29,7 +29,7 @@ Commands:
     (none)      Run container interactively (start existing or create new)
     up          Same as running without arguments
     down        Stop the container
-    clean       Remove container, image, and mounts config
+    clean       Remove container, image, mounts and ports config
     sh          Execute shell in running container
     status      Show container status
     mount       Add volume mount and recreate container
@@ -199,6 +199,8 @@ cmd_clean() {
 	podman rmi "${IMAGE_NAME}" 2>/dev/null || true
 	log_info "removing mounts config"
 	rm -f "${MOUNTS_FILE}"
+	log_info "removing ports config"
+	rm -f "${PORTS_FILE}"
 }
 
 cmd_sh() {

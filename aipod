@@ -20,6 +20,7 @@ USE_NPM="true"
 USE_UV="true"
 USE_CLAUDE_CODE="true"
 USE_CODEX="true"
+CONTAINERFILE=""
 
 usage() {
 	cat <<EOF
@@ -82,32 +83,48 @@ is_command() {
 	type "$1" >/dev/null 2>&1
 }
 
-# Find data directory containing aipod.conf and Containerfile
+# Find config directory containing aipod.conf
 # Checks script directory first, then XDG data directory
-find_data_dir() {
+find_config_dir() {
 	script_dir="$(cd "$(dirname "$0")" && pwd)"
-	if [ -f "${script_dir}/Containerfile" ]; then
+	if [ -f "${script_dir}/aipod.conf" ]; then
 		printf '%s' "${script_dir}"
 		return 0
 	fi
-	if [ -f "${DATA_DIR}/Containerfile" ]; then
+	if [ -f "${DATA_DIR}/aipod.conf" ]; then
 		printf '%s' "${DATA_DIR}"
 		return 0
 	fi
-	log_crit "cannot find Containerfile in ${script_dir} or ${DATA_DIR}"
-	exit 1
+	# No config found, return script directory as default
+	printf '%s' "${script_dir}"
 }
 
 load_config() {
-	data_dir="$(find_data_dir)"
-	if [ -f "${data_dir}/aipod.conf" ]; then
+	config_dir="$(find_config_dir)"
+	if [ -f "${config_dir}/aipod.conf" ]; then
 		# shellcheck disable=SC1091
-		. "${data_dir}/aipod.conf"
+		. "${config_dir}/aipod.conf"
 	fi
 	# Apply defaults - HOSTNAME from config becomes CONTAINER_NAME and IMAGE_NAME
 	CONTAINER_NAME="${HOSTNAME:-aipod}"
 	IMAGE_NAME="${HOSTNAME:-aipod}"
 	USERNAME="${USERNAME:-developer}"
+
+	# Resolve CONTAINERFILE: config value, or search script_dir/DATA_DIR
+	if [ -z "${CONTAINERFILE}" ]; then
+		script_dir="$(cd "$(dirname "$0")" && pwd)"
+		if [ -f "${script_dir}/Containerfile" ]; then
+			CONTAINERFILE="${script_dir}/Containerfile"
+		elif [ -f "${DATA_DIR}/Containerfile" ]; then
+			CONTAINERFILE="${DATA_DIR}/Containerfile"
+		fi
+	fi
+
+	# Validate Containerfile exists
+	if [ ! -f "${CONTAINERFILE}" ]; then
+		log_crit "Containerfile not found: ${CONTAINERFILE:-<not set>}"
+		exit 1
+	fi
 }
 
 ensure_config_dir() {
@@ -255,7 +272,6 @@ commit_snapshot() {
 }
 
 cmd_build() {
-	data_dir="$(find_data_dir)"
 	if ! image_exists; then
 		log_info "building image ${IMAGE_NAME}"
 		podman build \
@@ -267,8 +283,8 @@ cmd_build() {
 			--build-arg USE_CLAUDE_CODE="${USE_CLAUDE_CODE}" \
 			--build-arg USE_CODEX="${USE_CODEX}" \
 			-t "${IMAGE_NAME}" \
-			-f "${data_dir}/Containerfile" \
-			"${data_dir}"
+			-f "${CONTAINERFILE}" \
+			"$(dirname "${CONTAINERFILE}")"
 	fi
 }
 
@@ -526,8 +542,8 @@ cmd_close() {
 
 cmd_config() {
 	editor="${EDITOR:-vi}"
-	data_dir="$(find_data_dir)"
-	"${editor}" "${data_dir}/aipod.conf"
+	config_dir="$(find_config_dir)"
+	"${editor}" "${config_dir}/aipod.conf"
 }
 
 cmd_status() {

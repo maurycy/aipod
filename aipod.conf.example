@@ -1,6 +1,7 @@
 USERNAME=developer
 HOSTNAME=aipod
 CHEZMOI_DOTFILES_REPO=maurycy/dotfiles
+CONTAINERFILE=Containerfile
 
 USE_RUST=true
 USE_NPM=true

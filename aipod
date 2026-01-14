@@ -127,6 +127,25 @@ image_exists() {
 	podman image exists "${IMAGE_NAME}" 2>/dev/null
 }
 
+snapshot_exists() {
+	podman image exists "${IMAGE_NAME}:snapshot" 2>/dev/null
+}
+
+run_image() {
+	if snapshot_exists; then
+		printf '%s' "${IMAGE_NAME}:snapshot"
+	else
+		printf '%s' "${IMAGE_NAME}"
+	fi
+}
+
+commit_snapshot() {
+	if container_exists; then
+		log_info "committing container state"
+		podman commit --quiet "${CONTAINER_NAME}" "${IMAGE_NAME}:snapshot" >/dev/null
+	fi
+}
+
 cmd_build() {
 	data_dir="$(find_data_dir)"
 	if ! image_exists; then
@@ -168,10 +187,11 @@ cmd_run() {
 	else
 		log_info "creating container ${CONTAINER_NAME}"
 		podman run -d \
+			--replace \
 			--hostname "${CONTAINER_NAME}" \
 			--name "${CONTAINER_NAME}" \
 			"$@" \
-			"${IMAGE_NAME}" \
+			"$(run_image)" \
 			tail -f /dev/null
 	fi
 	if ! container_running; then
@@ -195,6 +215,8 @@ cmd_clean() {
 	podman stop "${CONTAINER_NAME}" 2>/dev/null || true
 	log_info "removing container ${CONTAINER_NAME}"
 	podman rm "${CONTAINER_NAME}" 2>/dev/null || true
+	log_info "removing snapshot image"
+	podman rmi "${IMAGE_NAME}:snapshot" 2>/dev/null || true
 	log_info "removing image ${IMAGE_NAME}"
 	podman rmi "${IMAGE_NAME}" 2>/dev/null || true
 	log_info "removing mounts config"
@@ -238,8 +260,8 @@ cmd_mount() {
 
 	# Recreate container if it exists
 	if container_exists; then
+		commit_snapshot
 		log_info "recreating container with new mount"
-		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 		cmd_run
 	fi
 }
@@ -273,8 +295,8 @@ cmd_unmount() {
 
 	# Recreate container if it exists
 	if container_exists; then
+		commit_snapshot
 		log_info "recreating container without mount"
-		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 		cmd_run
 	fi
 }
@@ -300,8 +322,8 @@ cmd_expose() {
 
 	# Recreate container if it exists
 	if container_exists; then
+		commit_snapshot
 		log_info "recreating container with new port"
-		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 		cmd_run
 	fi
 }
@@ -334,8 +356,8 @@ cmd_close() {
 
 	# Recreate container if it exists
 	if container_exists; then
+		commit_snapshot
 		log_info "recreating container without port"
-		podman rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 		cmd_run
 	fi
 }
@@ -363,6 +385,13 @@ cmd_status() {
 		printf 'image:     %s\n' "${IMAGE_NAME}"
 	else
 		printf 'image:     not built\n'
+	fi
+
+	# Snapshot state
+	if snapshot_exists; then
+		printf 'snapshot:  %s:snapshot\n' "${IMAGE_NAME}"
+	else
+		printf 'snapshot:  (none)\n'
 	fi
 
 	# Mounts

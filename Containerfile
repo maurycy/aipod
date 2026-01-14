@@ -137,6 +137,12 @@ WORKDIR /home/${USERNAME}
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Install Rust and Cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Install ripgrep via cargo
+RUN $HOME/.cargo/bin/cargo install ripgrep
+
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)
 RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
         sh -c "$(curl -fsLS get.chezmoi.io)" \

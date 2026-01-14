@@ -237,7 +237,7 @@ cmd_mount_headless() {
 		return 0
 	fi
 
-	log_info "adding mount ${local_path}:${remote_path}"
+	log_info "mounting ${local_path} to ${remote_path}"
 	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
 
 	if container_exists; then
@@ -401,7 +401,7 @@ cmd_mount() {
 		return 0
 	fi
 
-	log_info "adding mount ${local_path}:${remote_path}"
+	log_info "mounting ${local_path} to ${remote_path}"
 	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
 
 	# Recreate container if it exists

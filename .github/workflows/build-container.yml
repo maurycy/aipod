@@ -1,0 +1,56 @@
+name: build and test the container
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Containerfile'
+      - '.github/workflows/build-container.yml'
+  pull_request:
+    paths:
+      - 'Containerfile'
+      - '.github/workflows/build-container.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v5
+
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          push: false
+          load: true
+          tags: aipod:test
+          build-args: |
+            USERNAME=developer
+
+      - name: uv
+        run: docker run --rm aipod:test uv --version
+
+      - name: rust
+        run: docker run --rm aipod:test cargo --version
+
+      - name: ripgrep
+        run: docker run --rm aipod:test rg --version
+
+      - name: node.js
+        run: docker run --rm aipod:test node --version
+
+      - name: npm
+        run: docker run --rm aipod:test npm --version
+
+      - name: git
+        run: docker run --rm aipod:test git --version
+
+      - name: zsh
+        run: docker run --rm aipod:test zsh --version

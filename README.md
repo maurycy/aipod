@@ -40,7 +40,7 @@ aipod clean
 
 ## Configuration
 
-Customize `container.conf` to your liking:
+Customize `aipod.conf` to your liking:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -50,5 +50,7 @@ Customize `container.conf` to your liking:
 | `USE_RUST` | `true` | Install Rust via rustup, cargo, and ripgrep (nice for Claude Code) |
 | `USE_NPM` | `true` | Install nvm and Node.js 25 |
 | `USE_UV` | `true` | Install uv (Python package manager) |
+| `USE_CLAUDE_CODE` | `true` | Install Claude Code CLI |
+| `USE_CODEX` | `true` | Install OpenAI Codex (requires USE_NPM) |
 
 Remove any `USE_*` to remove a toolchain, or set it to `false`.

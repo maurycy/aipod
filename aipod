@@ -609,7 +609,7 @@ main() {
 	shift 2>/dev/null || true
 
 	case "${cmd}" in
-	"" | up)
+	"" | up | start)
 		cmd_run
 		;;
 	down | stop)

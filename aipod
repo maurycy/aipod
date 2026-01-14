@@ -34,7 +34,7 @@ Commands:
     status      Show container status
     clean       Remove container, image, and config
 
-    run         Run command in container (auto-mounts CWD)
+    run         Run command in container
     cp          Copy file/directory to container
 
     mount       Add volume mount
@@ -169,18 +169,27 @@ run_image() {
 
 # Translate host path to container path using mounts file
 # Returns 0 and prints container path if found, returns 1 if not covered by any mount
+# Resolves symlinks on both input path and mount paths for correct matching
 host_to_container_path() {
 	host_path="$1"
 	[ -f "${MOUNTS_FILE}" ] || return 1
+
+	# Resolve symlinks in input path (must be a directory for CWD use case)
+	resolved_host="$(cd -P "${host_path}" 2>/dev/null && pwd -P)" || return 1
+
 	while IFS=: read -r local_dir remote_dir; do
 		[ -z "${local_dir}" ] && continue
-		case "${host_path}" in
-			"${local_dir}")
+
+		# Resolve symlinks in mount path
+		resolved_local="$(cd -P "${local_dir}" 2>/dev/null && pwd -P)" || continue
+
+		case "${resolved_host}" in
+			"${resolved_local}")
 				printf '%s\n' "${remote_dir}"
 				return 0
 				;;
-			"${local_dir}"/*)
-				relative="${host_path#"${local_dir}"}"
+			"${resolved_local}"/*)
+				relative="${resolved_host#"${resolved_local}"}"
 				printf '%s%s\n' "${remote_dir}" "${relative}"
 				return 0
 				;;
@@ -232,34 +241,6 @@ cmd_run_headless() {
 			"$@" \
 			"$(run_image)" \
 			tail -f /dev/null
-	fi
-}
-
-# Mount directory without opening interactive shell
-cmd_mount_headless() {
-	local_path="${1:-$(pwd)}"
-	local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
-	basename="$(basename "${local_path}")"
-	remote_path="${2:-/home/${USERNAME}/${basename}}"
-
-	# Prevent mounting home directory
-	if [ "${local_path}" = "${HOME}" ]; then
-		log_err "mounting your home directory is a bad idea, and goes against the purpose of containerization"
-		exit 1
-	fi
-
-	ensure_config_dir
-
-	if mount_exists "${local_path}"; then
-		return 0
-	fi
-
-	log_info "mounting ${local_path} to ${remote_path}"
-	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
-
-	if container_exists; then
-		commit_snapshot
-		cmd_run_headless
 	fi
 }
 
@@ -357,18 +338,16 @@ cmd_exec() {
 		exit 1
 	fi
 
-	cwd="$(pwd)"
-	container_cwd="$(host_to_container_path "${cwd}")" || {
-		log_info "CWD not under any mount, auto-mounting ${cwd}"
-		cmd_mount_headless "${cwd}"
-		container_cwd="$(host_to_container_path "${cwd}")" || {
-			log_err "failed to determine container path after mount"
-			exit 1
-		}
-	}
-
 	ensure_running
-	podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
+
+	cwd="$(pwd -P)"
+	container_cwd="$(host_to_container_path "${cwd}")"
+
+	if [ -n "${container_cwd}" ]; then
+		podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
+	else
+		podman exec -it "${CONTAINER_NAME}" zsh -ic "$*"
+	fi
 }
 
 cmd_sync() {

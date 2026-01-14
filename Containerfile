@@ -5,6 +5,8 @@ ARG CHEZMOI_DOTFILES_REPO
 ARG USE_RUST=true
 ARG USE_NPM=true
 ARG USE_UV=true
+ARG USE_CLAUDE_CODE=true
+ARG USE_CODEX=true
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -154,6 +156,18 @@ RUN if [ "${USE_NPM}" = "true" ]; then \
         && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
         && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
         && nvm install 25; \
+    fi
+
+# Install Claude Code
+RUN if [ "${USE_CLAUDE_CODE}" = "true" ]; then \
+        curl -fsSL https://claude.ai/install.sh | bash; \
+    fi
+
+# Install OpenAI Codex (requires npm)
+RUN if [ "${USE_CODEX}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
+        export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
+        && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+        && npm i -g @openai/codex; \
     fi
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)

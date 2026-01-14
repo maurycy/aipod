@@ -1,7 +1,7 @@
-USERNAME := developer
-HOSTNAME := aipod
-CHEZMOI_DOTFILES_REPO := maurycy/dotfiles
+USERNAME=developer
+HOSTNAME=aipod
+CHEZMOI_DOTFILES_REPO=maurycy/dotfiles
 
-USE_RUST := true
-USE_NPM := true
-USE_UV := true
+USE_RUST=true
+USE_NPM=true
+USE_UV=true

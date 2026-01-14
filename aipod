@@ -302,6 +302,13 @@ cmd_unmount() {
 	fi
 }
 
+valid_port() {
+	case "$1" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	[ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
 cmd_expose() {
 	container_port="${1:-}"
 	if [ -z "${container_port}" ]; then
@@ -309,6 +316,15 @@ cmd_expose() {
 		exit 1
 	fi
 	host_port="${2:-${container_port}}"
+
+	if ! valid_port "${container_port}"; then
+		log_err "invalid container port: ${container_port} (must be 1-65535)"
+		exit 1
+	fi
+	if ! valid_port "${host_port}"; then
+		log_err "invalid host port: ${host_port} (must be 1-65535)"
+		exit 1
+	fi
 
 	ensure_config_dir
 

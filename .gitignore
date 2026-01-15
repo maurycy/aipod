@@ -1,1 +1,6 @@
 aipod.conf
+
+# Hugo build artifacts
+site/public/
+site/resources/_gen/
+site/.hugo_build.lock

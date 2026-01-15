@@ -315,7 +315,15 @@ cmd_run() {
 		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
 		exit 1
 	fi
-	podman exec -it "${CONTAINER_NAME}" /bin/zsh
+
+	cwd="$(pwd -P)"
+	container_cwd="$(host_to_container_path "${cwd}" || true)"
+
+	if [ -n "${container_cwd}" ]; then
+		podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" /bin/zsh
+	else
+		podman exec -it "${CONTAINER_NAME}" /bin/zsh
+	fi
 }
 
 cmd_down() {

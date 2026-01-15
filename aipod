@@ -110,8 +110,18 @@ load_config() {
 	IMAGE_NAME="${HOSTNAME:-aipod}"
 	USERNAME="${USERNAME:-developer}"
 
-	# Resolve CONTAINERFILE: config value, or search script_dir/DATA_DIR
-	if [ -z "${CONTAINERFILE}" ]; then
+	# Resolve CONTAINERFILE: config value, or search DATA_DIR
+	if [ -n "${CONTAINERFILE}" ]; then
+		case "${CONTAINERFILE}" in
+			/*)
+				;;
+			*)
+                if [ -f "${DATA_DIR}/${CONTAINERFILE}" ]; then
+					CONTAINERFILE="${DATA_DIR}/${CONTAINERFILE}"
+				fi
+				;;
+			esac
+	else
 		script_dir="$(cd "$(dirname "$0")" && pwd)"
 		if [ -f "${script_dir}/Containerfile" ]; then
 			CONTAINERFILE="${script_dir}/Containerfile"

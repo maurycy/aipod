@@ -24,7 +24,7 @@ CONTAINERFILE=""
 
 usage() {
 	cat <<EOF
-aipod: manage development containers
+aipod: manage development container
 
 Usage: aipod [command] [options]
 

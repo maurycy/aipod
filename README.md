@@ -1,37 +1,69 @@
 # Aipod
 
-Afraid of an AI agent going wild?
+Afraid of a code agent going wild? Contain it in [podman](https://podman.io/).
 
-This is a _lightly opinionated_ configuration that I'm using for yoloing AI agents.
+**Work in progress.**
+
+## Installation
+
+```bash
+install.sh: install, upgrade, or remove aipod
+
+Usage: install.sh [-t tag] [-s] <command>
+
+Commands:
+    install     Clone aipod to ~/.local/share/aipod and symlink to ~/.local/bin
+    upgrade     Pull latest changes from git
+    uninstall   Remove aipod (config preserved)
+
+Options:
+    -t tag      Install specific git tag or branch (default: main)
+    -s          Install from current directory (copies working tree)
+    -h          Show this help
+```
 
 ## Usage
 
 ```bash
-$ aipod
-[... 5 minutes later ... ]
-aipod% ls -la
-total 76
-drwx------. 1 developer developer    24 Jan 14 13:11 .
-drwxr-xr-x. 1 root      root         23 Jan 14 13:10 ..
--rw-r--r--. 1 developer developer   220 Jan  2 14:02 .bash_logout
--rw-r--r--. 1 developer developer  3573 Jan 14 13:10 .bashrc
-drwxr-xr-x. 4 developer developer   157 Jan 14 13:10 .cargo
-drwxr-xr-x. 4 developer developer    28 Jan 14 13:10 .config
-drwxr-xr-x. 3 developer developer    17 Jan 14 13:10 .local
-drwxr-xr-x. 8 developer developer  4096 Jan 14 13:11 .nvm
--rw-r--r--. 1 developer developer   854 Jan 14 13:10 .profile
-drwxr-xr-x. 6 developer developer    94 Jan 14 13:10 .rustup
--rw-r--r--. 1 developer developer 49375 Jan 14 13:11 .zcompdump
--rw-r--r--. 1 developer developer    21 Jan 14 13:10 .zshenv
--rw-r--r--. 1 developer developer   223 Jan 14 13:11 .zshrc
-```
+aipod: manage development container
 
-All necessary developer packages are installed, so `curl` one-liners work.
+Usage: aipod [command] [options]
 
-If you want to remove the container (warning: all your data will be lost), just:
+Commands:
+    up          Start container interactively
+    down        Stop the container
+    status      Show container status
+    clean       Remove container, image, and config
 
-```bash
-aipod clean
+    run         Run command in container
+    cp          Copy file/directory to container
+
+    mount       Add local directory to container
+    unmount     Remove local directory from container
+    port        Expose container port
+    close       Remove port mapping
+
+    config      Edit the configuration
+    help        Show this help
+
+Mounting directories:
+    aipod mount                     Mount current directory to home
+    aipod mount <path>              Mount path to home/basename
+    aipod mount <path> <remote>     Mount path to specified container path
+    aipod unmount                   Remove all mounts
+    aipod unmount <path>            Remove mount for specified path
+
+Port usage:
+    aipod port <port>               Expose container port to same host port
+    aipod port <port> <host>        Expose container port to specified host port
+    aipod close <port>              Remove port mapping for container port
+    aipod close                     Remove all port mappings
+
+Run usage:
+    aipod run <command> [args...]   Run command in container at translated CWD
+
+Copying:
+    aipod cp <file|directory>       Copy file/directory to container
 ```
 
 ## Requirements
@@ -40,7 +72,7 @@ aipod clean
 
 ## Configuration
 
-Customize `aipod.conf` to your liking:
+Customize the container to your liking:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

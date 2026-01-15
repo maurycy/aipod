@@ -6,12 +6,13 @@ SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/aipod"
 BIN_DIR="${HOME}/.local/bin"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aipod"
 TAG=""
+USE_SOURCE="false"
 
 usage() {
 	cat <<EOF
 install.sh: install, upgrade, or remove aipod
 
-Usage: install.sh [-t tag] <command>
+Usage: install.sh [-t tag] [-s] <command>
 
 Commands:
     install     Clone aipod to ~/.local/share/aipod and symlink to ~/.local/bin
@@ -20,6 +21,7 @@ Commands:
 
 Options:
     -t tag      Install specific git tag or branch (default: main)
+    -s          Install from current directory (copies working tree)
     -h          Show this help
 EOF
 }
@@ -46,15 +48,32 @@ cmd_install() {
 		exit 1
 	fi
 
-	check_cmd git
-
 	# Create directories
 	mkdir -p "$SHARE_DIR"
 	mkdir -p "$BIN_DIR"
 
-	# Clone repository (disable credential prompts for public repo)
-	log_info "cloning aipod to $SHARE_DIR"
-	GIT_TERMINAL_PROMPT=0 git clone "$REPO" "$SHARE_DIR"
+	if [ "$USE_SOURCE" = "true" ]; then
+		if [ -n "$TAG" ]; then
+			log_err "tag option is not supported with local source installs"
+			exit 1
+		fi
+		if [ ! -f "./aipod" ]; then
+			log_err "current directory missing aipod: $(pwd)"
+			exit 1
+		fi
+		if [ ! -f "./Containerfile" ]; then
+			log_err "current directory missing Containerfile: $(pwd)"
+			exit 1
+		fi
+
+		log_info "copying aipod from $(pwd) to $SHARE_DIR"
+		tar -cf - --exclude .git . | (cd "$SHARE_DIR" && tar -xf -)
+	else
+		check_cmd git
+		# Clone repository (disable credential prompts for public repo)
+		log_info "cloning aipod to $SHARE_DIR"
+		GIT_TERMINAL_PROMPT=0 git clone "$REPO" "$SHARE_DIR"
+	fi
 
 	# Checkout specific tag if requested
 	if [ -n "$TAG" ]; then
@@ -137,9 +156,10 @@ cmd_uninstall() {
 }
 
 main() {
-	while getopts "t:h" opt; do
+	while getopts "t:sh" opt; do
 		case "$opt" in
 		t) TAG="$OPTARG" ;;
+		s) USE_SOURCE="true" ;;
 		h)
 			usage
 			exit 0
@@ -152,7 +172,7 @@ main() {
 	done
 	shift $((OPTIND - 1))
 
-	case "${1:-}" in
+	case "${1:-install}" in
 	install) cmd_install ;;
 	upgrade | update) cmd_upgrade ;;
 	uninstall | deinstall | remove) cmd_uninstall ;;

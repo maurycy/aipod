@@ -1,0 +1,3 @@
+baseURL = 'https://aipod.sh/'
+languageCode = 'en-us'
+title = 'aipod'

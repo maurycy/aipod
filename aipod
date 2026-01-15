@@ -64,7 +64,6 @@ Run usage:
 Copying:
     aipod cp <file|directory>       Copy file/directory to container
 EOF
-	exit 0
 }
 
 log_info() {
@@ -641,10 +640,12 @@ main() {
 		;;
 	help | usage | -h | --help)
 		usage
+		exit 0
 		;;
 	*)
 		log_err "unknown command: ${cmd}"
 		usage
+		exit 1
 		;;
 	esac
 }

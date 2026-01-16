@@ -37,20 +37,20 @@ Commands:
     run         Run command in container
     cp          Copy file/directory to container
 
-    mount       Add volume mount
-    unmount     Remove volume mount
+    map         Add volume mount (alias: mount)
+    unmap       Remove volume mount (alias: unmount, umount, umap)
     port        Expose container port
     close       Remove port mapping
 
     config      Edit aipod.conf
     help        Show this help
 
-Mounting directories:
-    aipod mount                     Mount current directory to home
-    aipod mount <path>              Mount path to home/basename
-    aipod mount <path> <remote>     Mount path to specified container path
-    aipod unmount                   Remove all mounts
-    aipod unmount <path>            Remove mount for specified path
+Mapping directories:
+    aipod map                       Map current directory to container
+    aipod map <path>                Map path to container
+    aipod map <path> <remote>       Map path to specified container path
+    aipod unmap                     Remove all mappings
+    aipod unmap <path>              Remove mapping for specified path
 
 Port usage:
     aipod port <port>               Expose container port to same host port
@@ -211,7 +211,7 @@ host_to_container_path() {
 # Ensure container is running (start if needed, create if doesn't exist)
 ensure_running() {
 	if ! container_exists; then
-		cmd_run_headless
+		cmd_up_headless
 	elif ! container_running; then
 		log_info "starting container ${CONTAINER_NAME}"
 		podman start "${CONTAINER_NAME}" >/dev/null || true
@@ -223,7 +223,7 @@ ensure_running() {
 }
 
 # Start container without opening interactive shell
-cmd_run_headless() {
+cmd_up_headless() {
 	cmd_build
 	set --
 	if [ -f "${MOUNTS_FILE}" ]; then
@@ -279,7 +279,7 @@ cmd_build() {
 	fi
 }
 
-cmd_run() {
+cmd_up() {
 	cmd_build
 	set --
 	if [ -f "${MOUNTS_FILE}" ]; then
@@ -350,7 +350,7 @@ cmd_clean() {
 	rm -f "${PORTS_FILE}"
 }
 
-cmd_exec() {
+cmd_run() {
 	if [ $# -eq 0 ]; then
 		log_err "usage: aipod run <command> [args...]"
 		exit 1
@@ -368,7 +368,7 @@ cmd_exec() {
 	fi
 }
 
-cmd_sync() {
+cmd_cp() {
 	if [ -z "${1:-}" ]; then
 		log_err "usage: aipod cp <file|directory>"
 		exit 1
@@ -394,7 +394,7 @@ cmd_sync() {
 	podman cp "${src}" "${CONTAINER_NAME}:${container_path}"
 }
 
-cmd_mount() {
+cmd_map() {
 	local_path="${1:-$(pwd)}"
 	local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
 	basename="$(basename "${local_path}")"
@@ -421,11 +421,11 @@ cmd_mount() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container with new mount"
-		cmd_run
+		cmd_up
 	fi
 }
 
-cmd_unmount() {
+cmd_unmap() {
 	if [ ! -f "${MOUNTS_FILE}" ]; then
 		log_info "no mounts configured"
 		return 0
@@ -456,7 +456,7 @@ cmd_unmount() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container without mount"
-		cmd_run
+		cmd_up
 	fi
 }
 
@@ -467,7 +467,7 @@ valid_port() {
 	[ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
-cmd_expose() {
+cmd_port() {
 	container_port="${1:-}"
 	if [ -z "${container_port}" ]; then
 		log_err "usage: aipod expose <port> [host_port]"
@@ -499,7 +499,7 @@ cmd_expose() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container with new port"
-		cmd_run
+		cmd_up
 	fi
 }
 
@@ -533,7 +533,7 @@ cmd_close() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container without port"
-		cmd_run
+		cmd_up
 	fi
 }
 
@@ -609,7 +609,7 @@ main() {
 
 	case "${cmd}" in
 	"" | up | start)
-		cmd_run
+		cmd_up
 		;;
 	down | stop)
 		cmd_down
@@ -618,22 +618,22 @@ main() {
 		cmd_clean
 		;;
 	run)
-		cmd_exec "$@"
+		cmd_run "$@"
 		;;
 	cp | sync)
-		cmd_sync "$@"
+		cmd_cp "$@"
 		;;
 	status | info | ps)
 		cmd_status
 		;;
-	mount)
-		cmd_mount "$@"
+	map | mount)
+		cmd_map "$@"
 		;;
-	unmount | umount)
-		cmd_unmount "$@"
+	unmap | unmount | umount | umap)
+		cmd_unmap "$@"
 		;;
 	port | expose | bind | listen)
-		cmd_expose "$@"
+		cmd_port "$@"
 		;;
 	close | unbind)
 		cmd_close "$@"

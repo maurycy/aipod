@@ -1,6 +1,7 @@
 baseURL = "https://aipod.sh/"
 languageCode = "en-us"
 title = "Safe space for AI code agents"
+googleAnalytics = "G-FVF2XFLTMN"
 
 [params]
   description = "A container for running AI agents safely"

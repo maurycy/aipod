@@ -84,19 +84,19 @@ is_command() {
 }
 
 # Find config directory containing aipod.conf
-# Checks script directory first, then XDG data directory
+# Checks script directory first (for development), then XDG config directory
 find_config_dir() {
 	script_dir="$(cd "$(dirname "$0")" && pwd)"
 	if [ -f "${script_dir}/aipod.conf" ]; then
 		printf '%s' "${script_dir}"
 		return 0
 	fi
-	if [ -f "${DATA_DIR}/aipod.conf" ]; then
-		printf '%s' "${DATA_DIR}"
+	if [ -f "${CONFIG_DIR}/aipod.conf" ]; then
+		printf '%s' "${CONFIG_DIR}"
 		return 0
 	fi
-	# No config found, return script directory as default
-	printf '%s' "${script_dir}"
+	# No config found, return config directory as default
+	printf '%s' "${CONFIG_DIR}"
 }
 
 load_config() {

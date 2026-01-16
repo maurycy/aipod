@@ -603,7 +603,9 @@ main() {
 	load_config
 
 	cmd="${1:-}"
-	shift 2>/dev/null || true
+	if [ "$#" -gt 0 ]; then
+		shift
+	fi
 
 	case "${cmd}" in
 	"" | up | start)

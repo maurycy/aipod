@@ -1,3 +1,64 @@
-baseURL = 'https://aipod.sh/'
-languageCode = 'en-us'
-title = 'aipod'
+baseURL = "https://aipod.sh/"
+languageCode = "en-us"
+title = "Safe space for AI code agents"
+googleAnalytics = "G-FVF2XFLTMN"
+
+[params]
+  description = "A container for running AI agents safely"
+  tagline = "Afraid of an AI agent going wild?"
+  subtitle = "A lightly opinionated containerized environment for yoloing AI agents safely."
+
+  # GitHub repo
+  github_url = "https://github.com/maurycy/aipod"
+
+  # Install command
+  install_command = "curl -fsSL https://raw.githubusercontent.com/maurycy/aipod/main/install.sh | sh"
+
+  # Features
+  [[params.features]]
+    title = "VSCode Ready"
+    description = "Connect with <a href=\"https://code.visualstudio.com/docs/devcontainers/containers\" target=\"_blank\" rel=\"noopener\">Dev Containers</a> - run Copilot and extensions safely isolated"
+
+  [[params.features]]
+    title = "Podman Powered"
+    description = "Container isolation keeps your computer safe"
+
+  [[params.features]]
+    title = "Minimal Codebase"
+    description = "Around 500 lines of POSIX shell - easy to audit and understand"
+
+  [[params.features]]
+    title = "Dotfiles via chezmoi"
+    description = "Bring your own dotfiles with <a href=\"https://www.chezmoi.io/\" target=\"_blank\" rel=\"noopener\">chezmoi</a> - just set CHEZMOI_DOTFILES_REPO"
+
+  [[params.features]]
+    title = "Python via uv"
+    description = "Modern Python tooling through the <a href=\"https://docs.astral.sh/uv/\" target=\"_blank\" rel=\"noopener\">uv</a> package manager"
+
+  [[params.features]]
+    title = "Rust"
+    description = "Comes with <a href=\"https://rustup.rs/\" target=\"_blank\" rel=\"noopener\">rustup</a>, <a href=\"https://doc.rust-lang.org/cargo/\" target=\"_blank\" rel=\"noopener\">cargo</a>, and <a href=\"https://github.com/BurntSushi/ripgrep\" target=\"_blank\" rel=\"noopener\">ripgrep</a> - great for Claude Code integration"
+
+  [[params.features]]
+    title = "Node.js via nvm"
+    description = "Node.js v25 ready to go with <a href=\"https://github.com/nvm-sh/nvm\" target=\"_blank\" rel=\"noopener\">nvm</a> for version management"
+
+  [[params.features]]
+    title = "Developer Tools"
+    description = "Complete set of libraries and CLI tools out of the box"
+
+  [[params.features]]
+    title = "Easy Cleanup"
+    description = "One command to remove everything - <code>aipod clean</code> and start fresh"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[outputs]
+  home = ["HTML"]
+
+[sitemap]
+  changefreq = "weekly"
+  priority = 0.5

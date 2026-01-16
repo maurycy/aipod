@@ -169,12 +169,12 @@ code {
     color: var(--color-text);
 }
 
-[data-theme="dark"] .theme-toggle .sun { display: block; }
-[data-theme="dark"] .theme-toggle .moon { display: none; }
-[data-theme="light"] .theme-toggle .sun,
-:root:not([data-theme]) .theme-toggle .sun { display: none; }
-[data-theme="light"] .theme-toggle .moon,
-:root:not([data-theme]) .theme-toggle .moon { display: block; }
+[data-theme="dark"] .theme-toggle .sun,
+:root:not([data-theme]) .theme-toggle .sun { display: block; }
+[data-theme="dark"] .theme-toggle .moon,
+:root:not([data-theme]) .theme-toggle .moon { display: none; }
+[data-theme="light"] .theme-toggle .sun { display: none; }
+[data-theme="light"] .theme-toggle .moon { display: block; }
 
 /* Hero */
 .hero {

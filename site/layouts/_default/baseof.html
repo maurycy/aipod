@@ -42,11 +42,10 @@
             localStorage.setItem('theme', next);
         }
 
-        // Load saved theme or use system preference
+        // Load saved theme or default to dark
         (function() {
             const saved = localStorage.getItem('theme');
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = saved || (systemDark ? 'dark' : 'light');
+            const theme = saved || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
         })();
 

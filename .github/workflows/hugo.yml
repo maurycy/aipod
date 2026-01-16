@@ -2,7 +2,7 @@ name: Deploy Hugo site to Pages
 
 on:
   push:
-    branches: [better-site, main]
+    branches: main
     paths:
       - 'site/**'
       - '.github/workflows/hugo.yml'

@@ -1,0 +1,17 @@
+{{ define "main" }}
+<div class="page-wrapper">
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-text">aipod</span>
+            </a>
+        </div>
+    </header>
+    <main style="max-width: 700px; margin: 0 auto; padding: 3rem 1.5rem;">
+        <article>
+            <h1>{{ .Title }}</h1>
+            {{ .Content }}
+        </article>
+    </main>
+</div>
+{{ end }}

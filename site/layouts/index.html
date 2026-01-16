@@ -1,10 +1,169 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>{{ .Site.Title }}</title>
-</head>
-<body>
-  <h1>{{ .Site.Title }}</h1>
-  <p>Hello, World!</p>
-</body>
-</html>
+{{ define "main" }}
+<div class="page-wrapper">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-text">aipod</span>
+            </a>
+            <nav class="nav">
+                <a href="{{ .Site.Params.github_url }}" class="nav-link" target="_blank" rel="noopener">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                    GitHub
+                </a>
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                    <svg class="icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <svg class="icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                    </svg>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">{{ .Site.Params.tagline }}</h1>
+            <p class="hero-subtitle">Container wrapper for <mark class="highlight">yoloing code agents safely</mark>.</p>
+
+            <!-- Install Tabs -->
+            <div class="install-section">
+                <div class="install-tabs">
+                    <button class="install-tab active" data-tab="curl" onclick="switchTab('curl')">curl</button>
+                    <button class="install-tab" data-tab="git" onclick="switchTab('git')">git clone</button>
+                </div>
+                <div class="install-panels">
+                    <div id="curl" class="install-content active">
+                        <div class="code-block">
+                            <code>curl -fsSL https://raw.githubusercontent.com/maurycy/aipod/main/install.sh | sh</code>
+                            <button class="copy-btn" onclick="copyToClipboard('curl -fsSL https://raw.githubusercontent.com/maurycy/aipod/main/install.sh | sh', this)">Copy</button>
+                        </div>
+                    </div>
+                    <div id="git" class="install-content">
+                        <div class="code-block">
+                            <code>git clone https://github.com/maurycy/aipod && cd aipod && ./aipod</code>
+                            <button class="copy-btn" onclick="copyToClipboard('git clone https://github.com/maurycy/aipod && cd aipod && ./aipod', this)">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="install-note">Requires <a href="https://podman.io/" target="_blank" rel="noopener">Podman</a> - starts in ~1-5 minutes</p>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="features-content">
+            <h2 class="section-title">Pre-configured for AI Development</h2>
+            <div class="features-grid">
+                {{ range .Site.Params.features }}
+                <div class="feature-card">
+                    <h3 class="feature-title">{{ .title }}</h3>
+                    <p class="feature-description">{{ .description | safeHTML }}</p>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="how-content">
+            <h2 class="section-title">How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Run <code>aipod</code></h3>
+                        <p>Builds the container image and drops you into a zsh shell with all tools ready.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Mount your code</h3>
+                        <p>Run <code>aipod mount ~/projects/myapp</code> to share directories with the container.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Let agents go wild</h3>
+                        <p>Run <code>aipod run claude</code> or <code>aipod run codex</code> from your project directory. Agents will work from inside the container.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Clean up</h3>
+                        <p>Run <code>aipod clean</code> to remove everything and start fresh.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Configuration Section -->
+    <section class="config-section">
+        <div class="config-content">
+            <h2 class="section-title">Customizable</h2>
+            <p class="config-description">Configure the environment through <code>aipod config</code> - adjust username, hostname, dotfiles, and toolchains.</p>
+            <div class="code-block config-example">
+                <pre><code>USERNAME=developer
+HOSTNAME=aipod
+CHEZMOI_DOTFILES_REPO=    # eg: user/dotfiles
+
+USE_RUST=true             # including ripgrep
+USE_NPM=true
+USE_UV=true
+USE_CLAUDE_CODE=true
+USE_CODEX=true</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq">
+        <div class="faq-content">
+            <h2 class="section-title">FAQ</h2>
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary>Why Podman instead of Docker?</summary>
+                    <p>Podman runs rootless by default, providing better security isolation. It's also daemonless and compatible with Docker images.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>Why Debian?</summary>
+                    <p>Debian is stable, well-documented, and has excellent package availability. It's a boring choice - and that's exactly what you want for a dev environment.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>How secure is it really?</summary>
+                    <p>Container isolation is not a security boundary in the same way a VM is. An agent with root inside the container could potentially escape via kernel exploits. That said, it's a significant barrier that stops accidental damage and most misbehavior. Don't run untrusted code expecting perfect isolation.</p>
+                </details>
+                <details class="faq-item">
+                    <summary>What if I need additional tools?</summary>
+                    <p>The container is yours to customize. Install anything you need, or modify the build scripts in the repo.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="{{ .Site.Params.github_url }}" target="_blank" rel="noopener">GitHub</a>
+                <a href="{{ .Site.Params.github_url }}/issues" target="_blank" rel="noopener">Issues</a>
+                <a href="{{ .Site.Params.github_url }}#readme" target="_blank" rel="noopener">Documentation</a>
+            </div>
+            <p class="footer-credit">MIT License</p>
+        </div>
+    </footer>
+</div>
+{{ end }}

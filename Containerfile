@@ -139,6 +139,9 @@ RUN apt-file update || true
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
+# Set PATH to include user-installed tools
+ENV PATH="/home/${USERNAME}/.local/bin:/home/${USERNAME}/.cargo/bin:$PATH"
+
 # Install uv
 RUN if [ "${USE_UV}" = "true" ]; then \
         curl -LsSf https://astral.sh/uv/install.sh | sh; \
@@ -172,9 +175,9 @@ RUN if [ "${USE_CODEX}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)
 RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
-        sh -c "$(curl -fsLS get.chezmoi.io)" \
-        && bin/chezmoi init ${CHEZMOI_DOTFILES_REPO} \
-        && bin/chezmoi apply; \
+        sh -c "$(curl -fsLS get.chezmoi.io)" -- -b $HOME/.local/bin \
+        && $HOME/.local/bin/chezmoi init ${CHEZMOI_DOTFILES_REPO} \
+        && $HOME/.local/bin/chezmoi apply; \
     fi
 
 # Set default shell to zsh

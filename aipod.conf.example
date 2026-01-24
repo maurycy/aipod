@@ -8,4 +8,4 @@ USE_NPM=true
 USE_UV=true
 USE_CLAUDE_CODE=true
 USE_CODEX=true
-USE_MISE=true
+USE_MISE=false

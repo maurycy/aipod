@@ -84,5 +84,6 @@ Customize the container to your liking:
 | `USE_UV` | `true` | Install uv (Python package manager) |
 | `USE_CLAUDE_CODE` | `true` | Install Claude Code CLI |
 | `USE_CODEX` | `true` | Install OpenAI Codex (requires USE_NPM) |
+| `USE_MISE` | `true` | Install mise |
 
 Remove any `USE_*` to remove a toolchain, or set it to `false`.

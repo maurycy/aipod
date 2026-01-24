@@ -7,6 +7,7 @@ ARG USE_NPM=true
 ARG USE_UV=true
 ARG USE_CLAUDE_CODE=true
 ARG USE_CODEX=true
+ARG USE_MISE=true
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -168,6 +169,11 @@ RUN if [ "${USE_CODEX}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
         export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
         && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
         && npm i -g @openai/codex; \
+    fi
+
+# Install mise
+RUN if [ "${USE_MISE}" = "true" ]; then \
+        curl https://mise.run | sh; \
     fi
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)

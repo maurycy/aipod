@@ -21,6 +21,8 @@ USE_UV="true"
 USE_CLAUDE_CODE="true"
 USE_CODEX="true"
 USE_MISE="false"
+USE_OVERMIND="false"
+USE_JUST="false"
 CONTAINERFILE=""
 
 usage() {
@@ -275,6 +277,8 @@ cmd_build() {
 			--build-arg USE_CLAUDE_CODE="${USE_CLAUDE_CODE}" \
 			--build-arg USE_CODEX="${USE_CODEX}" \
 			--build-arg USE_MISE="${USE_MISE}" \
+			--build-arg USE_OVERMIND="${USE_OVERMIND}" \
+			--build-arg USE_JUST="${USE_JUST}" \
 			-t "${IMAGE_NAME}" \
 			-f "${CONTAINERFILE}" \
 			"$(dirname "${CONTAINERFILE}")"

@@ -9,3 +9,5 @@ USE_UV=true
 USE_CLAUDE_CODE=true
 USE_CODEX=true
 USE_MISE=false
+USE_OVERMIND=false
+USE_JUST=false

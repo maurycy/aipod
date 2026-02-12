@@ -8,6 +8,8 @@ ARG USE_UV=true
 ARG USE_CLAUDE_CODE=true
 ARG USE_CODEX=true
 ARG USE_MISE=false
+ARG USE_OVERMIND=false
+ARG USE_JUST=false
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -174,6 +176,17 @@ RUN if [ "${USE_CODEX}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
 # Install mise
 RUN if [ "${USE_MISE}" = "true" ]; then \
         curl https://mise.run | sh; \
+    fi
+
+# Install overmind
+RUN if [ "${USE_OVERMIND}" = "true" ]; then \
+        curl -fsSL https://github.com/DarthSim/overmind/releases/download/v2.5.1/overmind-v2.5.1-linux-arm64.gz | gunzip > ~/.local/bin/overmind \
+        && chmod +x ~/.local/bin/overmind; \
+    fi
+
+# Install just
+RUN if [ "${USE_JUST}" = "true" ]; then \
+        curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin; \
     fi
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)

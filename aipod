@@ -616,7 +616,7 @@ main() {
 	down | stop)
 		cmd_down
 		;;
-	clean | purge)
+	clean | cleanup | purge)
 		cmd_clean
 		;;
 	run)

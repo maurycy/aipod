@@ -151,6 +151,11 @@ mount_exists() {
 	awk -F: -v p="$1" '$1==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
 }
 
+mount_dest_exists() {
+	[ -f "${MOUNTS_FILE}" ] || return 1
+	awk -F: -v p="$1" '$2==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
+}
+
 port_exists() {
 	[ -f "${PORTS_FILE}" ] || return 1
 	awk -F: -v p="$1" '$2==p {found=1} END{exit !found}' "${PORTS_FILE}"
@@ -418,6 +423,11 @@ cmd_map() {
 	if mount_exists "${local_path}"; then
 		log_info "mount for ${local_path} already exists"
 		return 0
+	fi
+
+	if mount_dest_exists "${remote_path}"; then
+		log_err "destination ${remote_path} is already mounted from another path"
+		exit 1
 	fi
 
 	log_info "mounting ${local_path} to ${remote_path}"

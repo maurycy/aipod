@@ -43,11 +43,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gpgv \
     # Build toolchain
     build-essential \
+    clang \
+    lld \
+    llvm \
     gcc \
     g++ \
     make \
     cmake \
     ninja-build \
+    pkg-config \
     bison \
     flex \
     ccache \
@@ -92,6 +96,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Development libraries
     libbz2-dev \
     libffi-dev \
+    libgdbm-dev \
     libicu-dev \
     liblzma-dev \
     libncurses-dev \
@@ -100,6 +105,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreadline-dev \
     libsqlite3-dev \
     libssl-dev \
+    tk-dev \
+    uuid-dev \
     libudev-dev \
     libyaml-dev \
     libelf-dev \

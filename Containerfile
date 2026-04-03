@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     clang \
     lld \
     llvm \
+    libclang-rt-dev \
     gcc \
     g++ \
     make \

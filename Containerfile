@@ -204,7 +204,6 @@ RUN if [ -n "${CHEZMOI_DOTFILES_REPO}" ]; then \
     fi
 
 # Set default shell to zsh
-SHELL ["/bin/zsh", "-c"]
 ENV SHELL=/bin/zsh
 
 CMD ["/bin/zsh"]

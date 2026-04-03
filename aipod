@@ -38,7 +38,7 @@ Commands:
     clean       Remove container, image, and config
 
     run         Run command in container
-    cp          Copy file/directory to container
+    cp          Copy file/directory to/from container
 
     map         Add volume mount (alias: mount)
     unmap       Remove volume mount (alias: unmount, umount, umap)
@@ -66,6 +66,7 @@ Run usage:
 
 Copying:
     aipod cp <file|directory>       Copy file/directory to container
+    aipod cp :<path> [local-path]   Copy from container (default: current dir)
 EOF
 	exit 0
 }
@@ -381,8 +382,17 @@ cmd_run() {
 
 cmd_cp() {
 	if [ -z "${1:-}" ]; then
-		log_err "usage: aipod cp <file|directory>"
+		log_err "usage: aipod cp <file|directory> | aipod cp :<container-path> [local-path]"
 		exit 1
+	fi
+
+	if [ "${1#:}" != "$1" ]; then
+		container_path="${1#:}"
+		local_path="${2:-.}"
+		ensure_running
+		log_info "syncing ${CONTAINER_NAME}:${container_path} -> ${local_path}"
+		podman cp "${CONTAINER_NAME}:${container_path}" "${local_path}"
+		return
 	fi
 
 	# Resolve to absolute path

@@ -119,6 +119,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     sqlite3 \
     # Debugging and profiling
+    gdb \
     strace \
     valgrind \
     htop \

@@ -421,6 +421,12 @@ cmd_map() {
 	basename="$(basename "${local_path}")"
 	remote_path="${2:-/home/${USERNAME}/${basename}}"
 
+	# Validate remote path is absolute
+	case "${remote_path}" in
+		/*) ;;
+		*) remote_path="/home/${USERNAME}/${remote_path}" ;;
+	esac
+
 	# Prevent mounting home directory
 	if [ "${local_path}" = "${HOME}" ]; then
 		log_err "mounting your home directory is a bad idea, and goes against the purpose of containerization"

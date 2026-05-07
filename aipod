@@ -35,7 +35,7 @@ Commands:
     up          Start container interactively (default if no command given)
     down        Stop the container
     status      Show container status
-    clean       Remove container, image, and config
+    clean       Remove container, image, mount and ports config
 
     run         Run command in container
     cp          Copy file/directory to/from container

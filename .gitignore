@@ -1,4 +1,5 @@
 aipod.conf
+.claude/
 
 # Hugo build artifacts
 site/public/

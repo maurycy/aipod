@@ -10,6 +10,7 @@ USE_CLAUDE_CODE=true
 USE_CODEX=true
 USE_COPILOT=true
 USE_PI=true
+USE_AGY=true
 USE_MISE=false
 USE_OVERMIND=false
 USE_JUST=false

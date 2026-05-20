@@ -208,9 +208,9 @@ RUN if [ "${USE_JUST}" = "true" ]; then \
         curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin; \
     fi
 
-# Install Bun (does not require npm - it is its own runtime)
+# Install Bun - no npm needed; BUN_INSTALL=~/.local lands the binary on PATH alongside uv
 RUN if [ "${USE_BUN}" = "true" ]; then \
-        export HOME=/home/${USERNAME} \
+        export HOME=/home/${USERNAME} BUN_INSTALL="/home/${USERNAME}/.local" \
         && curl -fsSL https://bun.sh/install | bash; \
     fi
 

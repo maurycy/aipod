@@ -8,6 +8,7 @@ ARG USE_UV=true
 ARG USE_CLAUDE_CODE=true
 ARG USE_CODEX=true
 ARG USE_COPILOT=true
+ARG USE_PI=true
 ARG USE_MISE=false
 ARG USE_OVERMIND=false
 ARG USE_JUST=false
@@ -189,6 +190,13 @@ RUN if [ "${USE_COPILOT}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
         export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
         && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
         && npm i -g @github/copilot; \
+    fi
+
+# Install Pi coding agent (requires npm)
+RUN if [ "${USE_PI}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
+        export HOME=/home/${USERNAME} NVM_DIR="$HOME/.nvm" \
+        && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+        && npm i -g @earendil-works/pi-coding-agent; \
     fi
 
 # Install mise

@@ -85,6 +85,7 @@ Customize the container to your liking:
 | `USE_CLAUDE_CODE` | `true` | Install Claude Code CLI |
 | `USE_CODEX` | `true` | Install OpenAI Codex (requires USE_NPM) |
 | `USE_COPILOT` | `true` | Install GitHub Copilot CLI (requires USE_NPM) |
+| `USE_PI` | `true` | Install Pi coding agent (requires USE_NPM) |
 | `USE_MISE` | `false` | Install mise |
 | `USE_OVERMIND` | `false` | Install overmind (process manager for Procfile-based apps) |
 | `USE_JUST` | `false` | Install just (command runner) |

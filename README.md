@@ -88,6 +88,6 @@ Customize the container to your liking:
 | `USE_MISE` | `false` | Install mise |
 | `USE_OVERMIND` | `false` | Install overmind (process manager for Procfile-based apps) |
 | `USE_JUST` | `false` | Install just (command runner) |
-| `USE_BUN` | `false` | Install Bun (JavaScript runtime and package manager) |
+| `USE_BUN` | `false` | Install Bun.sh |
 
 Remove any `USE_*` to remove a toolchain, or set it to `false`.

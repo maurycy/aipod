@@ -18,6 +18,7 @@ CHEZMOI_DOTFILES_REPO=""
 USE_RUST="true"
 USE_NPM="true"
 USE_UV="true"
+UV_DEFAULT_PYTHON_VERSION="3.14"
 USE_CLAUDE_CODE="true"
 USE_CODEX="true"
 USE_COPILOT="true"
@@ -284,6 +285,7 @@ cmd_build() {
 			--build-arg USE_RUST="${USE_RUST}" \
 			--build-arg USE_NPM="${USE_NPM}" \
 			--build-arg USE_UV="${USE_UV}" \
+			--build-arg UV_DEFAULT_PYTHON_VERSION="${UV_DEFAULT_PYTHON_VERSION}" \
 			--build-arg USE_CLAUDE_CODE="${USE_CLAUDE_CODE}" \
 			--build-arg USE_CODEX="${USE_CODEX}" \
 			--build-arg USE_COPILOT="${USE_COPILOT}" \

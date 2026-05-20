@@ -5,6 +5,7 @@ ARG CHEZMOI_DOTFILES_REPO
 ARG USE_RUST=true
 ARG USE_NPM=true
 ARG USE_UV=true
+ARG UV_DEFAULT_PYTHON_VERSION=3.14
 ARG USE_CLAUDE_CODE=true
 ARG USE_CODEX=true
 ARG USE_COPILOT=true
@@ -156,9 +157,13 @@ RUN apt-file update || true
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
-# Install uv
+# Install uv - and, when UV_DEFAULT_PYTHON_VERSION is set, pre-install it as the default
+# interpreter so `uv run`/`uv venv` need no download at container runtime
 RUN if [ "${USE_UV}" = "true" ]; then \
-        curl -LsSf https://astral.sh/uv/install.sh | sh; \
+        curl -LsSf https://astral.sh/uv/install.sh | sh \
+        && if [ -n "${UV_DEFAULT_PYTHON_VERSION}" ]; then \
+               $HOME/.local/bin/uv python install "${UV_DEFAULT_PYTHON_VERSION}" --default; \
+           fi; \
     fi
 
 # Install Rust and Cargo

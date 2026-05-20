@@ -82,6 +82,7 @@ Customize the container to your liking:
 | `USE_RUST` | `true` | Install Rust via rustup, cargo, and ripgrep (nice for Claude Code) |
 | `USE_NPM` | `true` | Install nvm and Node.js 25 |
 | `USE_UV` | `true` | Install uv (Python package manager) |
+| `UV_DEFAULT_PYTHON_VERSION` | `3.14` | Python version uv pre-installs as the default interpreter (requires `USE_UV`). Leave blank to skip and let uv download on first use |
 | `USE_CLAUDE_CODE` | `true` | Install Claude Code CLI |
 | `USE_CODEX` | `true` | Install OpenAI Codex (requires USE_NPM) |
 | `USE_COPILOT` | `true` | Install GitHub Copilot CLI (requires USE_NPM) |

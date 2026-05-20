@@ -12,3 +12,4 @@ USE_COPILOT=true
 USE_MISE=false
 USE_OVERMIND=false
 USE_JUST=false
+USE_BUN=false

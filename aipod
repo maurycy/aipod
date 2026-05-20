@@ -24,6 +24,7 @@ USE_COPILOT="true"
 USE_MISE="false"
 USE_OVERMIND="false"
 USE_JUST="false"
+USE_BUN="false"
 CONTAINERFILE=""
 
 usage() {
@@ -287,6 +288,7 @@ cmd_build() {
 			--build-arg USE_MISE="${USE_MISE}" \
 			--build-arg USE_OVERMIND="${USE_OVERMIND}" \
 			--build-arg USE_JUST="${USE_JUST}" \
+			--build-arg USE_BUN="${USE_BUN}" \
 			-t "${IMAGE_NAME}" \
 			-f "${CONTAINERFILE}" \
 			"$(dirname "${CONTAINERFILE}")"

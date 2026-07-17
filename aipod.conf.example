@@ -14,3 +14,5 @@ USE_AGY=true
 USE_MISE=false
 USE_OVERMIND=false
 USE_JUST=false
+
+# CAP_ADD="PERFMON SYS_ADMIN"

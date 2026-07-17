@@ -27,6 +27,7 @@ USE_MISE="false"
 USE_OVERMIND="false"
 USE_JUST="false"
 CONTAINERFILE=""
+CAP_ADD=""
 
 usage() {
 	cat <<EOF
@@ -250,6 +251,9 @@ cmd_up_headless() {
 			set -- "$@" -p "$line"
 		done < "${PORTS_FILE}"
 	fi
+	for cap in ${CAP_ADD}; do
+		set -- "$@" --cap-add "$cap"
+	done
 	if container_exists; then
 		if ! container_running; then
 			podman start "${CONTAINER_NAME}" >/dev/null || true
@@ -312,6 +316,9 @@ cmd_up() {
 			set -- "$@" -p "$line"
 		done < "${PORTS_FILE}"
 	fi
+	for cap in ${CAP_ADD}; do
+		set -- "$@" --cap-add "$cap"
+	done
 	if container_exists; then
 		if container_running; then
 			log_info "opening shell in running container ${CONTAINER_NAME}"

@@ -14,6 +14,8 @@ PORTS_FILE="${CONFIG_DIR}/ports"
 IMAGE_NAME=""
 CONTAINER_NAME=""
 USERNAME=""
+USER_UID=""
+USER_GID=""
 CHEZMOI_DOTFILES_REPO=""
 USE_RUST="true"
 USE_NPM="true"
@@ -121,8 +123,12 @@ load_config() {
 		current_gid="$(id -g 2>/dev/null || true)"
 
 		USERNAME="${USERNAME:-${current_username}}"
+		USER_UID="${USER_UID:-${current_uid:-1000}}"
+		USER_GID="${USER_GID:-${current_gid:-1000}}"
 	else
 		USERNAME="${USERNAME:-developer}"
+		USER_UID="${USER_UID:-1000}"
+		USER_GID="${USER_GID:-1000}"
 	fi
 
 	# Resolve CONTAINERFILE: config value, or search DATA_DIR
@@ -290,6 +296,8 @@ cmd_build() {
 		log_info "building image ${IMAGE_NAME}"
 		podman build \
 			--build-arg USERNAME="${USERNAME}" \
+			--build-arg USER_UID="${USER_UID}" \
+			--build-arg USER_GID="${USER_GID}" \
 			--build-arg CHEZMOI_DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO}" \
 			--build-arg USE_RUST="${USE_RUST}" \
 			--build-arg USE_NPM="${USE_NPM}" \

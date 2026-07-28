@@ -1,6 +1,8 @@
 USE_HOST_USER=true
 # USERNS=keep-id
 # USERNAME=
+# USER_UID=
+# USER_GID=
 HOSTNAME=aipod
 CHEZMOI_DOTFILES_REPO=maurycy/dotfiles
 CONTAINERFILE=Containerfile

@@ -79,6 +79,8 @@ Customize the container to your liking:
 | `USE_HOST_USER` | `true` | Use the current host username for the container user |
 | `USERNS` | `keep-id` | Value passed to `podman run --userns` (set blank to disable) |
 | `USERNAME` | current host username | Container user name (or `developer` when `USE_HOST_USER=false`) |
+| `USER_UID` | current host uid | Container user uid (or `1000` when `USE_HOST_USER=false`) |
+| `USER_GID` | current host gid | Container user gid (or `1000` when `USE_HOST_USER=false`) |
 | `HOSTNAME` | `aipod` | Name of the container |
 | `CHEZMOI_DOTFILES_REPO` | | GitHub repo for [chezmoi](https://www.chezmoi.io/) dotfiles (eg: `user/dotfiles`). Does nothing if blank |
 | `USE_RUST` | `true` | Install Rust via rustup, cargo, and ripgrep (nice for Claude Code) |
@@ -92,4 +94,4 @@ Customize the container to your liking:
 
 Remove any `USE_*` to remove a toolchain, or set it to `false`.
 
-By default, aipod now creates the container user with your current host username/uid/gid and runs Podman with `--userns=keep-id`, which keeps mounted files owned by your host user. Set `USE_HOST_USER=false` (and optionally clear `USERNS`) to go back to the old fixed `developer` user behavior.
+By default, aipod creates the container user with your current host username/uid/gid and runs Podman with `--userns=keep-id`, which keeps mounted files owned by your host user. Set `USE_HOST_USER=false` (and optionally clear `USERNS`) to go back to the old fixed `developer` user behavior.

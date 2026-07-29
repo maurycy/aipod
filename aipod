@@ -11,6 +11,7 @@ MOUNTS_FILE="${CONFIG_DIR}/mounts"
 PORTS_FILE="${CONFIG_DIR}/ports"
 
 # Defaults (set after config is loaded)
+HOSTNAME=""
 IMAGE_NAME=""
 CONTAINER_NAME=""
 USERNAME=""

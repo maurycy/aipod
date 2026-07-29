@@ -76,21 +76,16 @@ EOF
 	exit 0
 }
 
-log_info() {
-	printf 'info %s\n' "$*" 1>&2
+log() {
+	printf '%s %s\n' "$1" "$2" >&2
 }
 
-log_err() {
-	printf 'error %s\n' "$*" 1>&2
+die() {
+	log "$1" "$2"
+	exit 1
 }
 
-log_crit() {
-	printf 'critical %s\n' "$*" 1>&2
-}
-
-is_command() {
-	type "$1" >/dev/null 2>&1
-}
+is_command() { type "$1" >/dev/null 2>&1; }
 
 # Find config directory containing aipod.conf
 # Checks script directory first (for development), then XDG config directory
@@ -139,49 +134,23 @@ load_config() {
 		fi
 	fi
 
-	# Validate Containerfile exists
 	if [ ! -f "${CONTAINERFILE}" ]; then
-		log_crit "Containerfile not found: ${CONTAINERFILE:-<not set>}"
-		exit 1
+		die critical "Containerfile not found: ${CONTAINERFILE:-<not set>}"
 	fi
 }
 
-ensure_config_dir() {
-	if [ ! -d "${CONFIG_DIR}" ]; then
-		mkdir -p "${CONFIG_DIR}"
-	fi
+ensure_config_dir() { [ -d "${CONFIG_DIR}" ] || mkdir -p "${CONFIG_DIR}"; }
+
+config_entry_exists() {
+	[ -f "$1" ] || return 1
+	awk -F: -v field="$2" -v value="$3" \
+		'$field==value {found=1} END{exit !found}' "$1"
 }
 
-mount_exists() {
-	[ -f "${MOUNTS_FILE}" ] || return 1
-	awk -F: -v p="$1" '$1==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
-}
-
-mount_dest_exists() {
-	[ -f "${MOUNTS_FILE}" ] || return 1
-	awk -F: -v p="$1" '$2==p {found=1} END{exit !found}' "${MOUNTS_FILE}"
-}
-
-port_exists() {
-	[ -f "${PORTS_FILE}" ] || return 1
-	awk -F: -v p="$1" '$2==p {found=1} END{exit !found}' "${PORTS_FILE}"
-}
-
-container_exists() {
-	podman container exists "${CONTAINER_NAME}" 2>/dev/null
-}
-
-container_running() {
-	[ "$(podman container inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null)" = "true" ]
-}
-
-image_exists() {
-	podman image exists "${IMAGE_NAME}" 2>/dev/null
-}
-
-snapshot_exists() {
-	podman image exists "${IMAGE_NAME}:snapshot" 2>/dev/null
-}
+container_exists() { podman container exists "${CONTAINER_NAME}" 2>/dev/null; }
+container_running() { [ "$(podman container inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null)" = "true" ]; }
+image_exists() { podman image exists "${IMAGE_NAME}" 2>/dev/null; }
+snapshot_exists() { podman image exists "${IMAGE_NAME}:snapshot" 2>/dev/null; }
 
 run_image() {
 	if snapshot_exists; then
@@ -196,6 +165,15 @@ podman_exec() {
 		podman exec -it "$@"
 	else
 		podman exec -i "$@"
+	fi
+}
+
+podman_exec_at_cwd() {
+	container_cwd="$(host_to_container_path "$(pwd -P)" || true)"
+	if [ -n "${container_cwd}" ]; then
+		podman_exec -w "${container_cwd}" "$@"
+	else
+		podman_exec "$@"
 	fi
 }
 
@@ -230,11 +208,6 @@ host_to_container_path() {
 	return 1
 }
 
-# Ensure container is running (start if needed, create if doesn't exist)
-ensure_running() {
-	cmd_up_headless
-}
-
 # Start container without opening interactive shell
 cmd_up_headless() {
 	cmd_build
@@ -256,14 +229,14 @@ cmd_up_headless() {
 	done
 	if container_exists; then
 		if ! container_running; then
-			log_info "starting container ${CONTAINER_NAME}"
+			log info "starting container ${CONTAINER_NAME}"
 			if ! podman start "${CONTAINER_NAME}" >/dev/null; then
-				log_err "failed to start container ${CONTAINER_NAME}"
+				log error "failed to start container ${CONTAINER_NAME}"
 				return 1
 			fi
 		fi
 	else
-		log_info "creating container ${CONTAINER_NAME}"
+		log info "creating container ${CONTAINER_NAME}"
 		podman run -d \
 			--replace \
 			--init \
@@ -274,22 +247,29 @@ cmd_up_headless() {
 			tail -f /dev/null
 	fi
 	if ! container_running; then
-		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+		log error "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
 		return 1
 	fi
 }
 
 commit_snapshot() {
 	if container_exists; then
-		log_info "committing container state"
+		log info "committing container state"
 		podman commit --quiet "${CONTAINER_NAME}" "${IMAGE_NAME}:snapshot" >/dev/null
 		podman rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 	fi
 }
 
+recreate_container() {
+	container_exists || return 0
+	commit_snapshot
+	log info "$1"
+	cmd_up_headless
+}
+
 cmd_build() {
 	if ! image_exists; then
-		log_info "building image ${IMAGE_NAME}"
+		log info "building image ${IMAGE_NAME}"
 		podman build \
 			--build-arg USERNAME="${USERNAME}" \
 			--build-arg CHEZMOI_DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO}" \
@@ -312,83 +292,63 @@ cmd_build() {
 
 cmd_up() {
 	cmd_up_headless
-	log_info "opening shell in running container ${CONTAINER_NAME}"
-
-	cwd="$(pwd -P)"
-	container_cwd="$(host_to_container_path "${cwd}" || true)"
-
-	if [ -n "${container_cwd}" ]; then
-		podman_exec -w "${container_cwd}" "${CONTAINER_NAME}" /bin/zsh
-	else
-		podman_exec "${CONTAINER_NAME}" /bin/zsh
-	fi
+	log info "opening shell in running container ${CONTAINER_NAME}"
+	podman_exec_at_cwd "${CONTAINER_NAME}" /bin/zsh
 }
 
 cmd_down() {
 	if container_exists; then
-		log_info "stopping container ${CONTAINER_NAME}"
+		log info "stopping container ${CONTAINER_NAME}"
 		podman stop "${CONTAINER_NAME}" 2>/dev/null || true
 	else
-		log_info "container ${CONTAINER_NAME} does not exist"
+		log info "container ${CONTAINER_NAME} does not exist"
 	fi
 }
 
 cmd_clean() {
-	log_info "stopping container ${CONTAINER_NAME}"
+	log info "stopping container ${CONTAINER_NAME}"
 	podman stop "${CONTAINER_NAME}" 2>/dev/null || true
-	log_info "removing container ${CONTAINER_NAME}"
+	log info "removing container ${CONTAINER_NAME}"
 	podman rm "${CONTAINER_NAME}" 2>/dev/null || true
-	log_info "removing snapshot image"
+	log info "removing snapshot image"
 	podman rmi "${IMAGE_NAME}:snapshot" 2>/dev/null || true
-	log_info "removing image ${IMAGE_NAME}"
+	log info "removing image ${IMAGE_NAME}"
 	podman rmi "${IMAGE_NAME}" 2>/dev/null || true
-	log_info "removing mounts config"
+	log info "removing mounts config"
 	rm -f "${MOUNTS_FILE}"
-	log_info "removing ports config"
+	log info "removing ports config"
 	rm -f "${PORTS_FILE}"
 }
 
 cmd_run() {
 	if [ $# -eq 0 ]; then
-		log_err "usage: aipod run <command> [args...]"
-		exit 1
+		die error "usage: aipod run <command> [args...]"
 	fi
 
-	ensure_running
-
-	cwd="$(pwd -P)"
-	container_cwd="$(host_to_container_path "${cwd}" || true)"
-
-	if [ -n "${container_cwd}" ]; then
-		podman_exec -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
-	else
-		podman_exec "${CONTAINER_NAME}" zsh -ic "$*"
-	fi
+	cmd_up_headless
+	podman_exec_at_cwd "${CONTAINER_NAME}" zsh -ic "$*"
 }
 
 cmd_cp() {
 	if [ -z "${1:-}" ]; then
-		log_err "usage: aipod cp <file|directory> | aipod cp :<container-path> [local-path]"
-		exit 1
+		die error "usage: aipod cp <file|directory> | aipod cp :<container-path> [local-path]"
 	fi
 
 	if [ "${1#:}" != "$1" ]; then
 		container_path="${1#:}"
 		local_path="${2:-.}"
-		ensure_running
-		log_info "syncing ${CONTAINER_NAME}:${container_path} -> ${local_path}"
+		cmd_up_headless
+		log info "syncing ${CONTAINER_NAME}:${container_path} -> ${local_path}"
 		podman cp "${CONTAINER_NAME}:${container_path}" "${local_path}"
 		return
 	fi
 
-	# Resolve to absolute path
 	if [ -d "$1" ]; then
 		src="$(cd "$1" && pwd)"
 	elif [ -f "$1" ]; then
 		src="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 	else
-		log_err "path does not exist: $1"
-		exit 1
+		die error "path does not exist: $1"
 	fi
 
 	# Get container destination - use mount path if available, else default to home
@@ -396,8 +356,8 @@ cmd_cp() {
 		container_path="/home/${USERNAME}/$(basename "${src}")"
 	}
 
-	ensure_running
-	log_info "syncing ${src} -> ${container_path}"
+	cmd_up_headless
+	log info "syncing ${src} -> ${container_path}"
 	podman cp "${src}" "${CONTAINER_NAME}:${container_path}"
 }
 
@@ -407,75 +367,82 @@ cmd_map() {
 	basename="$(basename "${local_path}")"
 	remote_path="${2:-/home/${USERNAME}/${basename}}"
 
-	# Validate remote path is absolute
 	case "${remote_path}" in
 		/*) ;;
 		*) remote_path="/home/${USERNAME}/${remote_path}" ;;
 	esac
 
-	# Prevent mounting home directory
 	if [ "${local_path}" = "${HOME}" ]; then
-		log_err "mounting your home directory is a bad idea, and goes against the purpose of containerization"
-		exit 1
+		die error "mounting your home directory is a bad idea, and goes against the purpose of containerization"
 	fi
 
 	ensure_config_dir
 
-	# Check if mount already exists
-	if mount_exists "${local_path}"; then
-		log_info "mount for ${local_path} already exists"
+	if config_entry_exists "${MOUNTS_FILE}" 1 "${local_path}"; then
+		log info "mount for ${local_path} already exists"
 		return 0
 	fi
 
-	if mount_dest_exists "${remote_path}"; then
-		log_err "destination ${remote_path} is already mounted from another path"
-		exit 1
+	if config_entry_exists "${MOUNTS_FILE}" 2 "${remote_path}"; then
+		die error "destination ${remote_path} is already mounted from another path"
 	fi
 
-	log_info "mounting ${local_path} to ${remote_path}"
+	log info "mounting ${local_path} to ${remote_path}"
 	printf '%s:%s\n' "${local_path}" "${remote_path}" >> "${MOUNTS_FILE}"
+	recreate_container "recreating container with new mount"
+}
 
-	# Recreate container if it exists
-	if container_exists; then
-		commit_snapshot
-		log_info "recreating container with new mount"
-		cmd_up_headless
+remove_config_entry() {
+	config_type="$1"
+	config_file="$2"
+	config_field="$3"
+	config_value="$4"
+
+	case "${config_type}" in
+	mount)
+		empty_message="no mounts configured"
+		all_message="removing all mounts"
+		item_message="removing mount for ${config_value}"
+		error_message="failed to update mounts file"
+		recreate_message="recreating container without mount"
+		;;
+	port)
+		empty_message="no ports exposed"
+		all_message="removing all port mappings"
+		item_message="closing port ${config_value}"
+		error_message="failed to update ports file"
+		recreate_message="recreating container without port"
+		;;
+	esac
+
+	if [ ! -f "${config_file}" ]; then
+		log info "${empty_message}"
+		return 0
 	fi
+	if [ -z "${config_value}" ]; then
+		log info "${all_message}"
+		rm -f "${config_file}"
+	else
+		log info "${item_message}"
+		tmp_file="${config_file}.tmp"
+		if awk -F: -v field="${config_field}" -v value="${config_value}" \
+			'$field!=value' "${config_file}" > "${tmp_file}"; then
+			mv "${tmp_file}" "${config_file}"
+		else
+			rm -f "${tmp_file}"
+			die error "${error_message}"
+		fi
+		[ -s "${config_file}" ] || rm -f "${config_file}"
+	fi
+	recreate_container "${recreate_message}"
 }
 
 cmd_unmap() {
-	if [ ! -f "${MOUNTS_FILE}" ]; then
-		log_info "no mounts configured"
-		return 0
-	fi
-
-	if [ -z "${1:-}" ]; then
-		log_info "removing all mounts"
-		rm -f "${MOUNTS_FILE}"
-	else
-		local_path="${1}"
+	local_path="${1:-}"
+	if [ -n "${local_path}" ]; then
 		local_path="$(cd "${local_path}" 2>/dev/null && pwd || printf '%s' "${local_path}")"
-		log_info "removing mount for ${local_path}"
-		tmp_file="${MOUNTS_FILE}.tmp"
-		if awk -F: -v p="${local_path}" '$1!=p' "${MOUNTS_FILE}" > "${tmp_file}"; then
-			mv "${tmp_file}" "${MOUNTS_FILE}"
-		else
-			rm -f "${tmp_file}"
-			log_err "failed to update mounts file"
-			exit 1
-		fi
-		# Remove file if empty
-		if [ ! -s "${MOUNTS_FILE}" ]; then
-			rm -f "${MOUNTS_FILE}"
-		fi
 	fi
-
-	# Recreate container if it exists
-	if container_exists; then
-		commit_snapshot
-		log_info "recreating container without mount"
-		cmd_up_headless
-	fi
+	remove_config_entry mount "${MOUNTS_FILE}" 1 "${local_path}"
 }
 
 valid_port() {
@@ -488,72 +455,30 @@ valid_port() {
 cmd_port() {
 	container_port="${1:-}"
 	if [ -z "${container_port}" ]; then
-		log_err "usage: aipod expose <port> [host_port]"
-		exit 1
+		die error "usage: aipod expose <port> [host_port]"
 	fi
 	host_port="${2:-${container_port}}"
 
 	if ! valid_port "${container_port}"; then
-		log_err "invalid container port: ${container_port} (must be 1-65535)"
-		exit 1
+		die error "invalid container port: ${container_port} (must be 1-65535)"
 	fi
 	if ! valid_port "${host_port}"; then
-		log_err "invalid host port: ${host_port} (must be 1-65535)"
-		exit 1
+		die error "invalid host port: ${host_port} (must be 1-65535)"
 	fi
 
 	ensure_config_dir
 
-	# Check if port already exposed
-	if port_exists "${container_port}"; then
-		log_info "port ${container_port} already exposed"
+	if config_entry_exists "${PORTS_FILE}" 2 "${container_port}"; then
+		log info "port ${container_port} already exposed"
 		return 0
 	fi
 
-	log_info "exposing port ${container_port} to host port ${host_port}"
+	log info "exposing port ${container_port} to host port ${host_port}"
 	printf '%s:%s\n' "${host_port}" "${container_port}" >> "${PORTS_FILE}"
-
-	# Recreate container if it exists
-	if container_exists; then
-		commit_snapshot
-		log_info "recreating container with new port"
-		cmd_up_headless
-	fi
+	recreate_container "recreating container with new port"
 }
 
-cmd_close() {
-	if [ ! -f "${PORTS_FILE}" ]; then
-		log_info "no ports exposed"
-		return 0
-	fi
-
-	if [ -z "${1:-}" ]; then
-		log_info "removing all port mappings"
-		rm -f "${PORTS_FILE}"
-	else
-		container_port="${1}"
-		log_info "closing port ${container_port}"
-		tmp_file="${PORTS_FILE}.tmp"
-		if awk -F: -v p="${container_port}" '$2!=p' "${PORTS_FILE}" > "${tmp_file}"; then
-			mv "${tmp_file}" "${PORTS_FILE}"
-		else
-			rm -f "${tmp_file}"
-			log_err "failed to update ports file"
-			exit 1
-		fi
-		# Remove file if empty
-		if [ ! -s "${PORTS_FILE}" ]; then
-			rm -f "${PORTS_FILE}"
-		fi
-	fi
-
-	# Recreate container if it exists
-	if container_exists; then
-		commit_snapshot
-		log_info "recreating container without port"
-		cmd_up_headless
-	fi
-}
+cmd_close() { remove_config_entry port "${PORTS_FILE}" 2 "${1:-}"; }
 
 cmd_config() {
 	editor="${EDITOR:-vi}"
@@ -561,8 +486,19 @@ cmd_config() {
 	"${editor}" "${config_dir}/aipod.conf"
 }
 
+show_config_entries() {
+	printf '%s:\n' "$1"
+	if [ -f "$2" ]; then
+		while IFS= read -r line; do
+			[ -z "${line}" ] && continue
+			printf '  %s\n' "${line}"
+		done < "$2"
+	else
+		printf '  (none)\n'
+	fi
+}
+
 cmd_status() {
-	# Container state
 	if container_exists; then
 		if container_running; then
 			printf 'container: running\n'
@@ -573,51 +509,27 @@ cmd_status() {
 		printf 'container: not created\n'
 	fi
 
-	# Image state
 	if image_exists; then
 		printf 'image:     %s\n' "${IMAGE_NAME}"
 	else
 		printf 'image:     not built\n'
 	fi
 
-	# Snapshot state
 	if snapshot_exists; then
 		printf 'snapshot:  %s:snapshot\n' "${IMAGE_NAME}"
 	else
 		printf 'snapshot:  (none)\n'
 	fi
 
-	# Mounts
-	printf 'mounts:\n'
-	if [ -f "${MOUNTS_FILE}" ]; then
-		while IFS= read -r line; do
-			[ -z "${line}" ] && continue
-			printf '  %s\n' "$line"
-		done < "${MOUNTS_FILE}"
-	else
-		printf '  (none)\n'
-	fi
-
-	# Ports
-	printf 'ports:\n'
-	if [ -f "${PORTS_FILE}" ]; then
-		while IFS= read -r line; do
-			[ -z "${line}" ] && continue
-			printf '  %s\n' "$line"
-		done < "${PORTS_FILE}"
-	else
-		printf '  (none)\n'
-	fi
+	show_config_entries mounts "${MOUNTS_FILE}"
+	show_config_entries ports "${PORTS_FILE}"
 }
 
 main() {
-	# Check for podman
 	if ! is_command podman; then
-		log_crit "podman is not installed - see https://podman.io/docs/installation"
-		exit 1
+		die critical "podman is not installed - see https://podman.io/docs/installation"
 	fi
 
-	# Load configuration
 	load_config
 
 	cmd="${1:-}"
@@ -626,47 +538,26 @@ main() {
 	fi
 
 	case "${cmd}" in
-	"" | up | start)
-		cmd_up
-		;;
-	down | stop)
-		cmd_down
-		;;
-	clean | cleanup | purge)
-		cmd_clean
-		;;
-	run)
-		cmd_run "$@"
-		;;
-	cp | sync)
-		cmd_cp "$@"
-		;;
-	status | st | info | ps)
-		cmd_status
-		;;
-	map | mount)
-		cmd_map "$@"
-		;;
-	unmap | unmount | umount | umap)
-		cmd_unmap "$@"
-		;;
-	port | expose | bind | listen)
-		cmd_port "$@"
-		;;
-	close | unbind)
-		cmd_close "$@"
-		;;
-	config)
-		cmd_config
-		;;
+	"" | start) cmd="up" ;;
+	stop) cmd="down" ;;
+	cleanup | purge) cmd="clean" ;;
+	sync) cmd="cp" ;;
+	st | info | ps) cmd="status" ;;
+	mount) cmd="map" ;;
+	unmount | umount | umap) cmd="unmap" ;;
+	expose | bind | listen) cmd="port" ;;
+	unbind) cmd="close" ;;
 	help | usage | -h | --help)
 		usage
 		;;
+	up | down | clean | run | cp | status | map | unmap | port | close | config)
+		;;
 	*)
-		log_err "unknown command: ${cmd}"
+		log error "unknown command: ${cmd}"
 		usage
 		;;
 	esac
+	"cmd_${cmd}" "$@"
 }
 
 main "$@"

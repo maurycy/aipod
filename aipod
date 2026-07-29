@@ -191,6 +191,14 @@ run_image() {
 	fi
 }
 
+podman_exec() {
+	if [ -t 0 ]; then
+		podman exec -it "$@"
+	else
+		podman exec -i "$@"
+	fi
+}
+
 # Translate host path to container path using mounts file
 # Returns 0 and prints container path if found, returns 1 if not covered by any mount
 # Resolves symlinks on both input path and mount paths for correct matching
@@ -346,9 +354,9 @@ cmd_up() {
 	container_cwd="$(host_to_container_path "${cwd}" || true)"
 
 	if [ -n "${container_cwd}" ]; then
-		podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" /bin/zsh
+		podman_exec -w "${container_cwd}" "${CONTAINER_NAME}" /bin/zsh
 	else
-		podman exec -it "${CONTAINER_NAME}" /bin/zsh
+		podman_exec "${CONTAINER_NAME}" /bin/zsh
 	fi
 }
 
@@ -388,9 +396,9 @@ cmd_run() {
 	container_cwd="$(host_to_container_path "${cwd}" || true)"
 
 	if [ -n "${container_cwd}" ]; then
-		podman exec -it -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
+		podman_exec -w "${container_cwd}" "${CONTAINER_NAME}" zsh -ic "$*"
 	else
-		podman exec -it "${CONTAINER_NAME}" zsh -ic "$*"
+		podman_exec "${CONTAINER_NAME}" zsh -ic "$*"
 	fi
 }
 

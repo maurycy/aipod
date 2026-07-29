@@ -1,6 +1,8 @@
 FROM debian:stable
 
 ARG USERNAME
+ARG USER_UID=1000
+ARG USER_GID=1000
 ARG CHEZMOI_DOTFILES_REPO
 ARG USE_RUST=true
 ARG USE_NPM=true
@@ -144,8 +146,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create user with sudo access
-RUN useradd -m -s /bin/zsh ${USERNAME} \
+# Create user with sudo access. The UID/GID must match the host user so
+# bind-mounted files are writable when Podman uses --userns=keep-id.
+# getent group checks if the group/group id already exists.
+# If group USERNAME exists, create a fallback group.
+RUN set -eux; \
+    if ! getent group "${USER_GID}" >/dev/null; then \
+        if getent group "${USERNAME}" >/dev/null; then \
+            groupadd --gid "${USER_GID}" "aipod-${USER_GID}"; \
+        else \
+            groupadd --gid "${USER_GID}" "${USERNAME}"; \
+        fi; \
+    fi; \
+    useradd --uid "${USER_UID}" --gid "${USER_GID}" -m -s /bin/zsh "${USERNAME}" \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Update apt-file cache

@@ -114,9 +114,11 @@
     <section class="config-section">
         <div class="config-content">
             <h2 class="section-title">Customizable</h2>
-            <p class="config-description">Configure the environment through <code>aipod config</code> - adjust username, hostname, dotfiles, and toolchains.</p>
+            <p class="config-description">Configure the environment through <code>aipod config</code> - adjust host user mapping, hostname, dotfiles, and toolchains.</p>
             <div class="code-block config-example">
-                <pre><code>USERNAME=developer
+                <pre><code>USE_HOST_USER=true
+USERNS=keep-id
+# USERNAME=
 HOSTNAME=aipod
 CHEZMOI_DOTFILES_REPO=    # eg: user/dotfiles
 

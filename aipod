@@ -15,6 +15,8 @@ HOSTNAME=""
 IMAGE_NAME=""
 CONTAINER_NAME=""
 USERNAME=""
+USER_UID=""
+USER_GID=""
 CHEZMOI_DOTFILES_REPO=""
 USE_RUST="true"
 USE_NPM="true"
@@ -117,7 +119,22 @@ load_config() {
 	# Apply defaults - HOSTNAME from config becomes CONTAINER_NAME and IMAGE_NAME
 	CONTAINER_NAME="${HOSTNAME:-aipod}"
 	IMAGE_NAME="${HOSTNAME:-aipod}"
-	USERNAME="${USERNAME:-developer}"
+	USE_HOST_USER="${USE_HOST_USER:-true}"
+	USERNS="${USERNS:-keep-id}"
+
+	if [ "${USE_HOST_USER}" = "true" ]; then
+		current_username="$(id -un 2>/dev/null || printf 'developer')"
+		current_uid="$(id -u 2>/dev/null || true)"
+		current_gid="$(id -g 2>/dev/null || true)"
+
+		USERNAME="${USERNAME:-${current_username}}"
+		USER_UID="${USER_UID:-${current_uid:-1000}}"
+		USER_GID="${USER_GID:-${current_gid:-1000}}"
+	else
+		USERNAME="${USERNAME:-developer}"
+		USER_UID="${USER_UID:-1000}"
+		USER_GID="${USER_GID:-1000}"
+	fi
 
 	# Resolve CONTAINERFILE: config value, or search DATA_DIR
 	if [ -n "${CONTAINERFILE}" ]; then
@@ -240,6 +257,9 @@ ensure_running() {
 cmd_up_headless() {
 	cmd_build
 	set --
+	if [ -n "${USERNS}" ]; then
+		set -- "$@" --userns "${USERNS}"
+	fi
 	if [ -f "${MOUNTS_FILE}" ]; then
 		while IFS= read -r line; do
 			[ -z "${line}" ] && continue
@@ -284,6 +304,8 @@ cmd_build() {
 		log_info "building image ${IMAGE_NAME}"
 		podman build \
 			--build-arg USERNAME="${USERNAME}" \
+			--build-arg USER_UID="${USER_UID}" \
+			--build-arg USER_GID="${USER_GID}" \
 			--build-arg CHEZMOI_DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO}" \
 			--build-arg USE_RUST="${USE_RUST}" \
 			--build-arg USE_NPM="${USE_NPM}" \
@@ -305,6 +327,9 @@ cmd_build() {
 cmd_up() {
 	cmd_build
 	set --
+	if [ -n "${USERNS}" ]; then
+		set -- "$@" --userns "${USERNS}"
+	fi
 	if [ -f "${MOUNTS_FILE}" ]; then
 		while IFS= read -r line; do
 			[ -z "${line}" ] && continue

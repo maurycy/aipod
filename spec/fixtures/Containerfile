@@ -1,0 +1,18 @@
+FROM docker.io/library/busybox:1.37.0
+
+ARG USERNAME=developer
+
+RUN mkdir -p "/home/${USERNAME}" \
+    && printf '%s\n' \
+        '#!/bin/sh' \
+        'if [ "${1:-}" = "-ic" ]; then' \
+        '    shift' \
+        '    exec /bin/sh -c "${1:-}"' \
+        'fi' \
+        'exec /bin/sh "$@"' \
+        > /bin/zsh \
+    && chmod +x /bin/zsh
+
+WORKDIR /home/${USERNAME}
+
+LABEL org.aipod.test-fixture=true

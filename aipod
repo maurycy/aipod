@@ -271,6 +271,7 @@ cmd_up_headless() {
 		log_info "creating container ${CONTAINER_NAME}"
 		podman run -d \
 			--replace \
+			--init \
 			--hostname "${CONTAINER_NAME}" \
 			--name "${CONTAINER_NAME}" \
 			"$@" \
@@ -339,6 +340,7 @@ cmd_up() {
 		log_info "creating container ${CONTAINER_NAME}"
 		podman run -d \
 			--replace \
+			--init \
 			--hostname "${CONTAINER_NAME}" \
 			--name "${CONTAINER_NAME}" \
 			"$@" \

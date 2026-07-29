@@ -28,6 +28,7 @@ USE_OVERMIND="false"
 USE_JUST="false"
 CONTAINERFILE=""
 CAP_ADD=""
+USE_PERF="false"
 
 usage() {
 	cat <<EOF
@@ -254,6 +255,9 @@ cmd_up_headless() {
 	for cap in ${CAP_ADD}; do
 		set -- "$@" --cap-add "$cap"
 	done
+	if [ "${USE_PERF}" = "true" ]; then
+		set -- "$@" --security-opt seccomp=unconfined
+	fi
 	if container_exists; then
 		if ! container_running; then
 			podman start "${CONTAINER_NAME}" >/dev/null || true
@@ -319,6 +323,9 @@ cmd_up() {
 	for cap in ${CAP_ADD}; do
 		set -- "$@" --cap-add "$cap"
 	done
+	if [ "${USE_PERF}" = "true" ]; then
+		set -- "$@" --security-opt seccomp=unconfined
+	fi
 	if container_exists; then
 		if container_running; then
 			log_info "opening shell in running container ${CONTAINER_NAME}"

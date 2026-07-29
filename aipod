@@ -669,7 +669,7 @@ main() {
 	cp | sync)
 		cmd_cp "$@"
 		;;
-	status | info | ps)
+	status | st | info | ps)
 		cmd_status
 		;;
 	map | mount)

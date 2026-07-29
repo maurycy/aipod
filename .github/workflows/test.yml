@@ -19,6 +19,12 @@ jobs:
       - name: Show Podman version
         run: podman version
 
+      - name: Install crun matching the Podman version
+        run: |
+          sudo curl -fsSL -o /usr/bin/crun https://github.com/containers/crun/releases/download/1.28/crun-1.28-linux-amd64
+          sudo chmod +x /usr/bin/crun
+          crun --version
+
       - name: Install ShellSpec
         run: git clone --depth 1 --branch 0.28.1 https://github.com/shellspec/shellspec.git "${RUNNER_TEMP}/shellspec"
 

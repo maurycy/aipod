@@ -70,16 +70,6 @@ Copying:
 
 - [podman](https://podman.io/)
 
-## Testing
-
-```bash
-shellcheck aipod install.sh spec/support/podman-wrapper
-shellspec
-```
-
-Tests use [ShellSpec](https://github.com/shellspec/shellspec) 0.28.1 and most
-of them require a running podman.
-
 ## Configuration
 
 Customize the container to your liking:

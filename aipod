@@ -192,7 +192,7 @@ run_image() {
 }
 
 podman_exec() {
-	if [ -t 0 ]; then
+	if [ -t 0 ] && [ -t 1 ] && [ -t 2 ]; then
 		podman exec -it "$@"
 	else
 		podman exec -i "$@"

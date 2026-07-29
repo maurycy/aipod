@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Transparent podman wrapper for the test suite. The specs isolate aipod with
+# a temporary XDG_CONFIG_HOME, but the real podman client must keep seeing its
+# normal configuration (machine connections, storage). This wrapper restores
+# the original environment and executes the real binary unchanged.
+
+set -eu
+
+: "${AIPOD_TEST_REAL_PODMAN:?AIPOD_TEST_REAL_PODMAN must be set}"
+
+if [ "${AIPOD_TEST_PODMAN_XDG_CONFIG_HOME_SET:-false}" = "true" ]; then
+	XDG_CONFIG_HOME="${AIPOD_TEST_PODMAN_XDG_CONFIG_HOME}"
+	export XDG_CONFIG_HOME
+else
+	unset XDG_CONFIG_HOME
+fi
+
+exec "${AIPOD_TEST_REAL_PODMAN}" "$@"

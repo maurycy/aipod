@@ -1,0 +1,13 @@
+FROM docker.io/library/alpine:3.22.2
+
+ARG USERNAME=developer
+
+RUN apk add --no-cache zsh \
+    && adduser -D -s /bin/zsh "${USERNAME}"
+
+ENV SHELL=/bin/zsh
+
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
+
+LABEL org.aipod.test-fixture=true

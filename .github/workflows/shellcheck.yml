@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellcheck aipod install.sh
+      - run: shellcheck aipod install.sh spec/support/podman-wrapper

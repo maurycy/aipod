@@ -16,3 +16,10 @@ USE_OVERMIND=false
 USE_JUST=false
 
 # CAP_ADD="PERFMON SYS_ADMIN"
+
+# Extra arguments passed verbatim to podman run, eg:
+#   match mounted file ownership to the host user (Linux):
+#     CREATE_ARGS="--userns keep-id:uid=1000,gid=1000"
+#   let perf work by disabling the default seccomp filter (weakens the sandbox):
+#     CREATE_ARGS="--security-opt seccomp=unconfined"
+# CREATE_ARGS=""

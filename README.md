@@ -91,5 +91,16 @@ Customize the container to your liking:
 | `USE_OVERMIND` | `false` | Install overmind (process manager for Procfile-based apps) |
 | `USE_JUST` | `false` | Install just (command runner) |
 | `CAP_ADD` | | Space-separated Linux capabilities to add to the container (eg: `PERFMON SYS_ADMIN` for `perf`) |
+| `CREATE_ARGS` | | Extra arguments passed verbatim to `podman run` when the container is created |
 
 Remove any `USE_*` to remove a toolchain, or set it to `false`.
+
+Some useful `CREATE_ARGS` recipes:
+
+| Recipe | Effect |
+|--------|--------|
+| `--userns keep-id:uid=1000,gid=1000` | Match mounted file ownership to the host user (Linux; requires podman 4.3+) |
+| `--security-opt seccomp=unconfined` | Let `perf` record software events by disabling the default seccomp filter. Weakens the sandbox |
+| `--memory 8g` | Cap container memory |
+
+Arguments apply when the container is created, so changing `CREATE_ARGS` requires `aipod clean` (or a container recreation) to take effect. Argument values containing spaces are not supported.

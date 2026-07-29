@@ -28,6 +28,7 @@ USE_OVERMIND="false"
 USE_JUST="false"
 CONTAINERFILE=""
 CAP_ADD=""
+CREATE_ARGS=""
 
 usage() {
 	cat <<EOF
@@ -254,6 +255,8 @@ cmd_up_headless() {
 	for cap in ${CAP_ADD}; do
 		set -- "$@" --cap-add "$cap"
 	done
+	# shellcheck disable=SC2086
+	set -- "$@" ${CREATE_ARGS}
 	if container_exists; then
 		if ! container_running; then
 			podman start "${CONTAINER_NAME}" >/dev/null || true
@@ -319,6 +322,8 @@ cmd_up() {
 	for cap in ${CAP_ADD}; do
 		set -- "$@" --cap-add "$cap"
 	done
+	# shellcheck disable=SC2086
+	set -- "$@" ${CREATE_ARGS}
 	if container_exists; then
 		if container_running; then
 			log_info "opening shell in running container ${CONTAINER_NAME}"

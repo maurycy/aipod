@@ -67,6 +67,7 @@ main() {
 	*)
 		printf '\n'
 		log_info "add %s to your PATH:" "$BIN_DIR"
+		# shellcheck disable=SC2016
 		printf '    export PATH="%s:$PATH"\n' "$BIN_DIR"
 		;;
 	esac

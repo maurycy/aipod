@@ -14,7 +14,6 @@ ARG USE_AGY=true
 ARG USE_MISE=false
 ARG USE_OVERMIND=false
 ARG USE_JUST=false
-ARG USE_BUN=false
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -226,12 +225,6 @@ RUN if [ "${USE_OVERMIND}" = "true" ]; then \
 # Install just
 RUN if [ "${USE_JUST}" = "true" ]; then \
         curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin; \
-    fi
-
-# Install Bun - no npm needed; BUN_INSTALL=~/.local lands the binary on PATH alongside uv
-RUN if [ "${USE_BUN}" = "true" ]; then \
-        export HOME=/home/${USERNAME} BUN_INSTALL="/home/${USERNAME}/.local" \
-        && curl -fsSL https://bun.sh/install | bash; \
     fi
 
 # Install chezmoi and apply dotfiles (if CHEZMOI_DOTFILES_REPO is set)

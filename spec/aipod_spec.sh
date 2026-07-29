@@ -90,7 +90,7 @@ Describe 'aipod'
 
 	cleanup() {
 		if [ -n "${AIPOD_NAME:-}" ] && [ -x "${TEST_ROOT}/bin/podman" ]; then
-			"${TEST_ROOT}/bin/podman" rm -f "${AIPOD_NAME}" >/dev/null 2>&1 || :
+			"${TEST_ROOT}/bin/podman" rm -f --time 0 "${AIPOD_NAME}" >/dev/null 2>&1 || :
 			"${TEST_ROOT}/bin/podman" rmi -f "${AIPOD_NAME}:snapshot" >/dev/null 2>&1 || :
 			"${TEST_ROOT}/bin/podman" rmi -f "${AIPOD_NAME}" >/dev/null 2>&1 || :
 		fi

@@ -232,16 +232,7 @@ host_to_container_path() {
 
 # Ensure container is running (start if needed, create if doesn't exist)
 ensure_running() {
-	if ! container_exists; then
-		cmd_up_headless
-	elif ! container_running; then
-		log_info "starting container ${CONTAINER_NAME}"
-		podman start "${CONTAINER_NAME}" >/dev/null || true
-	fi
-	if ! container_running; then
-		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
-		exit 1
-	fi
+	cmd_up_headless
 }
 
 # Start container without opening interactive shell
@@ -265,7 +256,11 @@ cmd_up_headless() {
 	done
 	if container_exists; then
 		if ! container_running; then
-			podman start "${CONTAINER_NAME}" >/dev/null || true
+			log_info "starting container ${CONTAINER_NAME}"
+			if ! podman start "${CONTAINER_NAME}" >/dev/null; then
+				log_err "failed to start container ${CONTAINER_NAME}"
+				return 1
+			fi
 		fi
 	else
 		log_info "creating container ${CONTAINER_NAME}"
@@ -277,6 +272,10 @@ cmd_up_headless() {
 			"$@" \
 			"$(run_image)" \
 			tail -f /dev/null
+	fi
+	if ! container_running; then
+		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
+		return 1
 	fi
 }
 
@@ -312,45 +311,8 @@ cmd_build() {
 }
 
 cmd_up() {
-	cmd_build
-	set --
-	if [ -f "${MOUNTS_FILE}" ]; then
-		while IFS= read -r line; do
-			[ -z "${line}" ] && continue
-			set -- "$@" -v "$line"
-		done < "${MOUNTS_FILE}"
-	fi
-	if [ -f "${PORTS_FILE}" ]; then
-		while IFS= read -r line; do
-			[ -z "${line}" ] && continue
-			set -- "$@" -p "$line"
-		done < "${PORTS_FILE}"
-	fi
-	for cap in ${CAP_ADD}; do
-		set -- "$@" --cap-add "$cap"
-	done
-	if container_exists; then
-		if container_running; then
-			log_info "opening shell in running container ${CONTAINER_NAME}"
-		else
-			log_info "starting existing container ${CONTAINER_NAME}"
-			podman start "${CONTAINER_NAME}" >/dev/null || true
-		fi
-	else
-		log_info "creating container ${CONTAINER_NAME}"
-		podman run -d \
-			--replace \
-			--init \
-			--hostname "${CONTAINER_NAME}" \
-			--name "${CONTAINER_NAME}" \
-			"$@" \
-			"$(run_image)" \
-			tail -f /dev/null
-	fi
-	if ! container_running; then
-		log_err "container ${CONTAINER_NAME} is not running - recreate with 'aipod clean'"
-		exit 1
-	fi
+	cmd_up_headless
+	log_info "opening shell in running container ${CONTAINER_NAME}"
 
 	cwd="$(pwd -P)"
 	container_cwd="$(host_to_container_path "${cwd}" || true)"

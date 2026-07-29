@@ -1,18 +1,13 @@
-FROM docker.io/library/busybox:1.37.0
+FROM docker.io/library/alpine:3.22.2
 
 ARG USERNAME=developer
 
-RUN mkdir -p "/home/${USERNAME}" \
-    && printf '%s\n' \
-        '#!/bin/sh' \
-        'if [ "${1:-}" = "-ic" ]; then' \
-        '    shift' \
-        '    exec /bin/sh -c "${1:-}"' \
-        'fi' \
-        'exec /bin/sh "$@"' \
-        > /bin/zsh \
-    && chmod +x /bin/zsh
+RUN apk add --no-cache zsh \
+    && adduser -D -s /bin/zsh "${USERNAME}"
 
+ENV SHELL=/bin/zsh
+
+USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 LABEL org.aipod.test-fixture=true

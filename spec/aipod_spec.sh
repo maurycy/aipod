@@ -169,6 +169,16 @@ Describe 'aipod'
 			Assert hostname_is "${AIPOD_NAME}"
 		End
 
+		It 'opens a shell after starting the container'
+			When call run_aipod up
+			The status should be success
+			The output should be present
+			The stderr should include "creating container ${AIPOD_NAME}"
+			The stderr should include "opening shell in running container ${AIPOD_NAME}"
+			Assert container_present
+			Assert running_is true
+		End
+
 		It 'stops but does not remove the container on down'
 			lifecycle_down() {
 				run_aipod run true >/dev/null 2>&1 &&
@@ -465,17 +475,27 @@ Describe 'aipod'
 				scenario="${AIPOD_TEST_MOCK_SCENARIO:-}"
 				case "${1:-} ${2:-}" in
 					'container exists' | 'image exists')
-						[ "${scenario}" = "not-running" ] && exit 0
+						case "${scenario}" in
+							running | not-running | start-failure) exit 0 ;;
+						esac
 						exit 1
 						;;
 					'container inspect')
-						printf 'false\n'
+						if [ "${scenario}" = "running" ]; then
+							printf 'true\n'
+						else
+							printf 'false\n'
+						fi
 						exit 0
 						;;
 				esac
 				case "${1:-}" in
 					build)
 						[ "${scenario}" = "build-failure" ] && exit 1
+						exit 0
+						;;
+					start)
+						[ "${scenario}" = "start-failure" ] && exit 1
 						exit 0
 						;;
 				esac
@@ -488,6 +508,53 @@ Describe 'aipod'
 
 		mock_log_has() { grep -q "$1" "${TEST_ROOT}/podman.log"; }
 		mock_log_lacks() { ! grep -q "$1" "${TEST_ROOT}/podman.log"; }
+
+		It 'allocates a TTY when all streams are terminals'
+			tty_exec() {
+				install_mock_podman
+				AIPOD_TEST_MOCK_LOG="${TEST_ROOT}/podman.log"
+				AIPOD_TEST_MOCK_SCENARIO="running"
+				export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_SCENARIO
+				case "$(uname -s)" in
+					Darwin) script -q /dev/null "${AIPOD}" up ;;
+					*) script -q -e -c '"${AIPOD}" up' /dev/null ;;
+				esac
+			}
+			When call tty_exec
+			The status should be success
+			The output should be present
+			Assert mock_log_has "exec -it ${AIPOD_NAME} /bin/zsh"
+		End
+
+		Describe 'with one redirected stream'
+			Parameters
+				stdin
+				stdout
+				stderr
+			End
+
+			It "does not allocate a TTY when $1 is redirected"
+				redirected_exec() {
+					install_mock_podman
+					AIPOD_TEST_MOCK_LOG="${TEST_ROOT}/podman.log"
+					AIPOD_TEST_MOCK_SCENARIO="running"
+					export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_SCENARIO TEST_ROOT
+					case "$1" in
+						stdin) tty_command='"${AIPOD}" up </dev/null' ;;
+						stdout) tty_command='"${AIPOD}" up >"${TEST_ROOT}/stdout"' ;;
+						stderr) tty_command='"${AIPOD}" up 2>"${TEST_ROOT}/stderr"' ;;
+					esac
+					case "$(uname -s)" in
+						Darwin) script -q /dev/null /bin/sh -c "${tty_command}" >/dev/null ;;
+						*) script -q -e -c "${tty_command}" /dev/null >/dev/null ;;
+					esac
+				}
+				When call redirected_exec "$1"
+				The status should be success
+				Assert mock_log_has "exec -i ${AIPOD_NAME} /bin/zsh"
+				Assert mock_log_lacks "exec -it ${AIPOD_NAME} /bin/zsh"
+			End
+		End
 
 		It 'fails clearly when podman is missing'
 			run_without_podman() {
@@ -527,6 +594,31 @@ Describe 'aipod'
 			When call failing_build
 			The status should eq 1
 			The stderr should include "building image ${AIPOD_NAME}"
+		End
+
+		It 'reports an error when a created container does not remain running'
+			created_container_stops() {
+				install_mock_podman
+				AIPOD_TEST_MOCK_LOG="${TEST_ROOT}/podman.log"
+				export AIPOD_TEST_MOCK_LOG
+				run_aipod run true
+			}
+			When call created_container_stops
+			The status should eq 1
+			The stderr should include "container ${AIPOD_NAME} is not running"
+			Assert mock_log_has 'run -d --replace --init'
+		End
+
+		It 'propagates a podman start failure'
+			failing_start() {
+				install_mock_podman
+				AIPOD_TEST_MOCK_SCENARIO="start-failure"
+				export AIPOD_TEST_MOCK_SCENARIO
+				run_aipod run true
+			}
+			When call failing_start
+			The status should eq 1
+			The stderr should include "failed to start container ${AIPOD_NAME}"
 		End
 
 		It 'reports an error when the container never reaches running state'

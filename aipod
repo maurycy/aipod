@@ -475,7 +475,7 @@ cmd_map() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container with new mount"
-		cmd_up
+		cmd_up_headless
 	fi
 }
 
@@ -510,7 +510,7 @@ cmd_unmap() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container without mount"
-		cmd_up
+		cmd_up_headless
 	fi
 }
 
@@ -553,7 +553,7 @@ cmd_port() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container with new port"
-		cmd_up
+		cmd_up_headless
 	fi
 }
 
@@ -587,7 +587,7 @@ cmd_close() {
 	if container_exists; then
 		commit_snapshot
 		log_info "recreating container without port"
-		cmd_up
+		cmd_up_headless
 	fi
 }
 

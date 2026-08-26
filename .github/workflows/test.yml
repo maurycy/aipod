@@ -14,19 +14,29 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Show Podman version
         run: podman version
 
       - name: Install crun matching the Podman version
         run: |
-          sudo curl -fsSL -o /usr/bin/crun https://github.com/containers/crun/releases/download/1.28/crun-1.28-linux-amd64
-          sudo chmod +x /usr/bin/crun
+          curl -fsSLO https://github.com/containers/crun/releases/download/1.28/crun-1.28-linux-amd64
+          printf '%s  %s\n' \
+            '2aa6b7024a9c9f153895c0d11ae233d3758f54844011c3a039e3e89048d01d42' \
+            'crun-1.28-linux-amd64' | sha256sum --check --strict
+          sudo install -m 0755 crun-1.28-linux-amd64 /usr/bin/crun
           crun --version
 
       - name: Install ShellSpec
-        run: git clone --depth 1 --branch 0.28.1 https://github.com/shellspec/shellspec.git "${RUNNER_TEMP}/shellspec"
+        run: |
+          git init "${RUNNER_TEMP}/shellspec"
+          git -C "${RUNNER_TEMP}/shellspec" remote add origin https://github.com/shellspec/shellspec.git
+          git -C "${RUNNER_TEMP}/shellspec" fetch --depth 1 origin 90e48c950239f3b8a9fdfa3e869592872c77b981
+          git -C "${RUNNER_TEMP}/shellspec" checkout --detach FETCH_HEAD
 
       - name: Run ShellSpec
-        run: "${RUNNER_TEMP}/shellspec/shellspec"
+        run: |
+          "${RUNNER_TEMP}/shellspec/shellspec"

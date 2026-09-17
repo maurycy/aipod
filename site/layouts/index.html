@@ -119,6 +119,8 @@
                 <pre><code>USERNAME=developer
 HOSTNAME=aipod
 CHEZMOI_DOTFILES_REPO=    # eg: user/dotfiles
+PASSTHROUGH_ENV="GH_TOKEN"
+GH_TOKEN="$(gh auth token)"
 
 USE_RUST=true             # including ripgrep
 USE_NPM=true

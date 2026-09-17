@@ -3,6 +3,11 @@ HOSTNAME=aipod
 CHEZMOI_DOTFILES_REPO=maurycy/dotfiles
 CONTAINERFILE=Containerfile
 
+# Pass selected environment variables to interactive shells and `aipod run`.
+# PASSTHROUGH_ENV="GH_TOKEN"
+# GH_TOKEN="$(gh auth token)"
+PASSTHROUGH_ENV=
+
 USE_RUST=true
 USE_NPM=true
 USE_UV=true

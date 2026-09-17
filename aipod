@@ -30,6 +30,7 @@ USE_JUST="false"
 CONTAINERFILE=""
 CAP_ADD=""
 CREATE_ARGS=""
+PASSTHROUGH_ENV=""
 
 usage() {
 	cat <<EOF
@@ -161,13 +162,26 @@ run_image() {
 	fi
 }
 
-podman_exec() {
+# Execute a command with TTY handling and configured host environment variables.
+# Passing only variable names keeps their values out of the process arguments.
+podman_exec() (
+	for variable in ${PASSTHROUGH_ENV}; do
+		case "${variable}" in
+		'' | [!A-Za-z_]* | *[!A-Za-z0-9_]*)
+			die critical "invalid environment variable name in PASSTHROUGH_ENV: ${variable}"
+			;;
+		esac
+
+		export "${variable}"
+		set -- --env "${variable}" "$@"
+	done
+
 	if [ -t 0 ] && [ -t 1 ] && [ -t 2 ]; then
 		podman exec -it "$@"
 	else
 		podman exec -i "$@"
 	fi
-}
+)
 
 podman_exec_at_cwd() {
 	container_cwd="$(host_to_container_path "$(pwd -P)" || true)"

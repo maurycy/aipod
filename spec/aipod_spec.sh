@@ -440,6 +440,96 @@ Describe 'aipod'
 		End
 	End
 
+	Describe 'environment passthrough' podman
+
+		passthrough_exec() {
+			case "$1" in
+				run) run_aipod run "$2" ;;
+				up) printf '%s\n' "$2" | run_aipod up ;;
+			esac
+		}
+
+		passthrough_not_persisted() {
+			stored_env="$(podman container inspect --format \
+				'{{range .Config.Env}}{{println .}}{{end}}' "${AIPOD_NAME}")" || return 1
+			! printf '%s\n' "${stored_env}" | grep -q -e '^AIPOD_TEST_PASS_' -e '^variable='
+		}
+
+		Describe 'values'
+			Parameters:value run up
+
+			It "preserves empty, unset, spaced and multiline variables through $1 without persisting them"
+				passthrough_values() {
+					AIPOD_TEST_PASS_EMPTY=''
+					AIPOD_TEST_PASS_SPACES='  secret with spaces  '
+					AIPOD_TEST_PASS_NEWLINES="$(printf 'first secret line\nsecond secret line\n.')"
+					AIPOD_TEST_PASS_NEWLINES="${AIPOD_TEST_PASS_NEWLINES%.}"
+					export AIPOD_TEST_PASS_EMPTY AIPOD_TEST_PASS_SPACES AIPOD_TEST_PASS_NEWLINES
+					unset AIPOD_TEST_PASS_UNSET
+					printf '%s\n' 'PASS_ENV="AIPOD_TEST_PASS_EMPTY AIPOD_TEST_PASS_UNSET AIPOD_TEST_PASS_SPACES AIPOD_TEST_PASS_NEWLINES"' >> "${TEST_ROOT}/aipod.conf"
+					run_aipod run true </dev/null >/dev/null 2>&1 || return 1
+					probe="$(cat <<-'EOF'
+						printf 'empty:%s:<%s>\nunset:%s\nspaces:<%s>\nnewlines:<%s>\n' "${AIPOD_TEST_PASS_EMPTY+set}" "${AIPOD_TEST_PASS_EMPTY}" "${AIPOD_TEST_PASS_UNSET+set}" "${AIPOD_TEST_PASS_SPACES}" "${AIPOD_TEST_PASS_NEWLINES}"
+					EOF
+					)"
+					passthrough_exec "$1" "${probe}"
+				}
+				When call passthrough_values "$1"
+				The status should be success
+				The output should eq "$(printf 'empty:set:<>\nunset:\nspaces:<  secret with spaces  >\nnewlines:<first secret line\nsecond secret line\n>')"
+				if [ "$1" = up ]; then
+					The stderr should include "opening shell in running container ${AIPOD_NAME}"
+				fi
+				Assert passthrough_not_persisted
+			End
+
+			It "exports config values and preserves a variable named variable through $1"
+				passthrough_config_values() {
+					unset AIPOD_TEST_PASS_CONFIG variable
+					cat >> "${TEST_ROOT}/aipod.conf" <<-'EOF'
+						PASS_ENV="variable AIPOD_TEST_PASS_CONFIG"
+						variable='original value'
+						AIPOD_TEST_PASS_CONFIG='secret from config'
+					EOF
+					run_aipod run true </dev/null >/dev/null 2>&1 || return 1
+					passthrough_exec "$1" 'printf "variable:<%s>\nconfig:<%s>\n" "$variable" "$AIPOD_TEST_PASS_CONFIG"'
+				}
+				When call passthrough_config_values "$1"
+				The status should be success
+				The output should eq "$(printf 'variable:<original value>\nconfig:<secret from config>')"
+				if [ "$1" = up ]; then
+					The stderr should include "opening shell in running container ${AIPOD_NAME}"
+				fi
+				Assert passthrough_not_persisted
+			End
+		End
+
+		Describe 'invalid names'
+			Parameters:matrix
+				run up
+				'1INVALID' 'INVALID-NAME' 'INVALID.NAME' 'INVALID=value' '*' 'AIPOD_TEST_PASS_*'
+			End
+
+			It "rejects $2 through $1 even when a wildcard matches a valid filename"
+				invalid_passthrough() {
+					run_aipod run true </dev/null >/dev/null 2>&1 || return 1
+					printf 'PASS_ENV="%s"\n' "$2" >> "${TEST_ROOT}/aipod.conf"
+					# A matching valid name must not turn a wildcard into an allowed variable.
+					touch "${WORKSPACE}/AIPOD_TEST_PASS_SECRET"
+					AIPOD_TEST_PASS_SECRET='must not be forwarded'
+					export AIPOD_TEST_PASS_SECRET
+					cd "${WORKSPACE}" || return 1
+					passthrough_exec "$1" 'printf unexpected-execution'
+				}
+				When call invalid_passthrough "$1" "$2"
+				The status should eq 1
+				The output should be blank
+				The stderr should include "invalid environment variable name in PASS_ENV: $2"
+				Assert passthrough_not_persisted
+			End
+		End
+	End
+
 	Describe 'cp' podman
 		It 'copies a file from host to container'
 			cp_to_container() {

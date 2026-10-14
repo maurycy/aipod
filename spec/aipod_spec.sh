@@ -26,6 +26,7 @@ Describe 'aipod'
 			USE_COPILOT=false
 			USE_PI=false
 			USE_AGY=false
+			USE_MUSE=false
 			USE_MISE=false
 			USE_OVERMIND=false
 			USE_JUST=false

@@ -10,6 +10,7 @@ ARG USE_CODEX=true
 ARG USE_COPILOT=true
 ARG USE_PI=true
 ARG USE_AGY=true
+ARG USE_MUSE=true
 ARG USE_MISE=false
 ARG USE_OVERMIND=false
 ARG USE_JUST=false
@@ -204,6 +205,11 @@ RUN if [ "${USE_PI}" = "true" ] && [ "${USE_NPM}" = "true" ]; then \
 RUN if [ "${USE_AGY}" = "true" ]; then \
         export HOME=/home/${USERNAME} \
         && curl -fsSL https://antigravity.google/cli/install.sh | bash; \
+    fi
+
+# Install Muse
+RUN if [ "${USE_MUSE}" = "true" ]; then \
+        curl -fsSL https://dev.meta.ai/install.sh | bash; \
     fi
 
 # Install mise

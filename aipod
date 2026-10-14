@@ -24,6 +24,7 @@ USE_CODEX="true"
 USE_COPILOT="true"
 USE_PI="true"
 USE_AGY="true"
+USE_MUSE="true"
 USE_MISE="false"
 USE_OVERMIND="false"
 USE_JUST="false"
@@ -300,6 +301,7 @@ cmd_build() {
 			--build-arg USE_COPILOT="${USE_COPILOT}" \
 			--build-arg USE_PI="${USE_PI}" \
 			--build-arg USE_AGY="${USE_AGY}" \
+			--build-arg USE_MUSE="${USE_MUSE}" \
 			--build-arg USE_MISE="${USE_MISE}" \
 			--build-arg USE_OVERMIND="${USE_OVERMIND}" \
 			--build-arg USE_JUST="${USE_JUST}" \

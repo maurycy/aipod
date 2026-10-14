@@ -88,6 +88,7 @@ Customize the container to your liking:
 | `USE_COPILOT` | `true` | Install GitHub Copilot CLI (requires USE_NPM) |
 | `USE_PI` | `true` | Install Pi coding agent (requires USE_NPM) |
 | `USE_AGY` | `true` | Install Antigravity CLI |
+| `USE_MUSE` | `true` | Install Muse CLI |
 | `USE_MISE` | `false` | Install mise |
 | `USE_OVERMIND` | `false` | Install overmind (process manager for Procfile-based apps) |
 | `USE_JUST` | `false` | Install just (command runner) |

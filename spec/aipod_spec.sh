@@ -563,16 +563,20 @@ Describe 'aipod'
 				if [ -n "${AIPOD_TEST_MOCK_LOG:-}" ]; then
 					printf '%s\n' "$*" >> "${AIPOD_TEST_MOCK_LOG}"
 				fi
-				scenario="${AIPOD_TEST_MOCK_SCENARIO:-}"
+				state="${AIPOD_TEST_MOCK_STATE:-}"
+				if [ "${state}" = "unavailable" ]; then
+					printf 'Error: unable to connect to Podman socket\n' >&2
+					exit 125
+				fi
 				case "${1:-} ${2:-}" in
 					'container exists' | 'image exists')
-						case "${scenario}" in
+						case "${state}" in
 							running | not-running | start-failure) exit 0 ;;
 						esac
 						exit 1
 						;;
 					'container inspect')
-						if [ "${scenario}" = "running" ]; then
+						if [ "${state}" = "running" ]; then
 							printf 'true\n'
 						else
 							printf 'false\n'
@@ -582,11 +586,11 @@ Describe 'aipod'
 				esac
 				case "${1:-}" in
 					build)
-						[ "${scenario}" = "build-failure" ] && exit 1
+						[ "${state}" = "build-failure" ] && exit 1
 						exit 0
 						;;
 					start)
-						[ "${scenario}" = "start-failure" ] && exit 1
+						[ "${state}" = "start-failure" ] && exit 1
 						exit 0
 						;;
 				esac
@@ -600,12 +604,54 @@ Describe 'aipod'
 		mock_log_has() { grep -q "$1" "${TEST_ROOT}/podman.log"; }
 		mock_log_lacks() { ! grep -q "$1" "${TEST_ROOT}/podman.log"; }
 
+		Describe 'when podman is unavailable'
+			Parameters
+				map subdir /new-workspace
+				unmap .
+				port 8081
+				close 8080
+				run true
+				status
+				clean
+			End
+
+			It "fails before $1 changes configuration or reports resource state"
+				unavailable_podman() {
+					install_mock_podman
+					AIPOD_TEST_MOCK_STATE="unavailable"
+					export AIPOD_TEST_MOCK_STATE
+					printf '%s:/workspace\n' "${WORKSPACE}" > "${MOUNTS_FILE}"
+					printf '8080:8080\n' > "${PORTS_FILE}"
+					cd "${WORKSPACE}" || return 1
+					run_aipod "$@"
+				}
+				When call unavailable_podman "$@"
+				The status should eq 125
+				The output should be blank
+				The stderr should eq 'Error: unable to connect to Podman socket'
+				Assert mounts_line_is "${WORKSPACE}:/workspace"
+				Assert ports_line_is '8080:8080'
+			End
+		End
+
+		It 'allows editing configuration when podman is unavailable'
+			offline_config() {
+				install_mock_podman
+				AIPOD_TEST_MOCK_STATE="unavailable"
+				EDITOR=true
+				export AIPOD_TEST_MOCK_STATE EDITOR
+				run_aipod config
+			}
+			When call offline_config
+			The status should be success
+		End
+
 		It 'allocates a TTY when all streams are terminals'
 			tty_exec() {
 				install_mock_podman
 				AIPOD_TEST_MOCK_LOG="${TEST_ROOT}/podman.log"
-				AIPOD_TEST_MOCK_SCENARIO="running"
-				export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_SCENARIO
+				AIPOD_TEST_MOCK_STATE="running"
+				export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_STATE
 				case "$(uname -s)" in
 					Darwin) script -q /dev/null "${AIPOD}" up ;;
 					*) script -q -e -c '"${AIPOD}" up' /dev/null ;;
@@ -628,8 +674,8 @@ Describe 'aipod'
 				redirected_exec() {
 					install_mock_podman
 					AIPOD_TEST_MOCK_LOG="${TEST_ROOT}/podman.log"
-					AIPOD_TEST_MOCK_SCENARIO="running"
-					export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_SCENARIO TEST_ROOT
+					AIPOD_TEST_MOCK_STATE="running"
+					export AIPOD AIPOD_TEST_MOCK_LOG AIPOD_TEST_MOCK_STATE TEST_ROOT
 					case "$1" in
 						stdin) tty_command='"${AIPOD}" up </dev/null' ;;
 						stdout) tty_command='"${AIPOD}" up >"${TEST_ROOT}/stdout"' ;;
@@ -678,8 +724,8 @@ Describe 'aipod'
 		It 'propagates a podman build failure'
 			failing_build() {
 				install_mock_podman
-				AIPOD_TEST_MOCK_SCENARIO="build-failure"
-				export AIPOD_TEST_MOCK_SCENARIO
+				AIPOD_TEST_MOCK_STATE="build-failure"
+				export AIPOD_TEST_MOCK_STATE
 				run_aipod run true
 			}
 			When call failing_build
@@ -703,8 +749,8 @@ Describe 'aipod'
 		It 'propagates a podman start failure'
 			failing_start() {
 				install_mock_podman
-				AIPOD_TEST_MOCK_SCENARIO="start-failure"
-				export AIPOD_TEST_MOCK_SCENARIO
+				AIPOD_TEST_MOCK_STATE="start-failure"
+				export AIPOD_TEST_MOCK_STATE
 				run_aipod run true
 			}
 			When call failing_start
@@ -715,8 +761,8 @@ Describe 'aipod'
 		It 'reports an error when the container never reaches running state'
 			stuck_container() {
 				install_mock_podman
-				AIPOD_TEST_MOCK_SCENARIO="not-running"
-				export AIPOD_TEST_MOCK_SCENARIO
+				AIPOD_TEST_MOCK_STATE="not-running"
+				export AIPOD_TEST_MOCK_STATE
 				run_aipod run true
 			}
 			When call stuck_container

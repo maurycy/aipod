@@ -578,6 +578,9 @@ main() {
 		usage
 		;;
 	esac
+	if [ "${cmd}" != "config" ]; then
+		podman info >/dev/null
+	fi
 	"cmd_${cmd}" "$@"
 }
 

@@ -227,6 +227,24 @@ Describe 'aipod'
 			The path "${TEST_ROOT}/control-file" should be exist
 			The path "${TEST_ROOT}" should be exist
 		End
+
+		It 'rebuilds the image and keeps mounts and ports on rebuild'
+			lifecycle_rebuild() {
+				run_aipod run true >/dev/null 2>&1 &&
+					run_aipod map "${WORKSPACE}" /workspace >/dev/null 2>&1 &&
+					run_aipod port 8080 "${HOST_PORT}" >/dev/null 2>&1 &&
+					run_aipod rebuild
+			}
+			When call lifecycle_rebuild
+			The status should be success
+			The output should be present
+			The stderr should include "building image ${AIPOD_NAME}"
+			The stderr should include "opening shell in running container ${AIPOD_NAME}"
+			Assert running_is true
+			Assert snapshot_absent
+			Assert mount_source_is_workspace
+			Assert ports_line_is "${HOST_PORT}:8080"
+		End
 	End
 
 	Describe 'configuration precedence' podman
@@ -603,6 +621,88 @@ Describe 'aipod'
 
 		mock_log_has() { grep -q "$1" "${TEST_ROOT}/podman.log"; }
 		mock_log_lacks() { ! grep -q "$1" "${TEST_ROOT}/podman.log"; }
+
+		Describe 'per-directory config'
+			# Drop the script-dir config so the XDG configs are used
+			use_xdg_config() {
+				install_mock_podman
+				mv "${TEST_ROOT}/aipod.conf" "${AIPOD_CONFIG_DIR}/aipod.conf"
+			}
+			container_mounts_is() {
+				[ "$(cat "${AIPOD_CONFIG_DIR}/containers/$1/mounts")" = "$2" ]
+			}
+
+			It 'gives each initialized directory its own container and mounts'
+				per_dir_init() {
+					use_xdg_config
+					cd "${WORKSPACE}" &&
+						run_aipod init "${AIPOD_NAME}-a" >/dev/null 2>&1 &&
+						run_aipod map >/dev/null 2>&1 &&
+						cd "${COPY_SOURCE}" &&
+						run_aipod init "${AIPOD_NAME}-b" >/dev/null 2>&1 &&
+						run_aipod map >/dev/null 2>&1 &&
+						run_aipod status
+				}
+				When call per_dir_init
+				The status should be success
+				The output should include "config:    ${AIPOD_CONFIG_DIR}/dirs/"
+				The output should include "${COPY_SOURCE}:/home/developer/copy-source"
+				The output should not include "${WORKSPACE}"
+				Assert container_mounts_is "${AIPOD_NAME}-a" "${WORKSPACE}:/home/developer/workspace"
+				Assert container_mounts_is "${AIPOD_NAME}-b" "${COPY_SOURCE}:/home/developer/copy-source"
+				The path "${MOUNTS_FILE}" should not be exist
+			End
+
+			It 'shares a container between directories initialized with the same name'
+				shared_init() {
+					use_xdg_config
+					cd "${WORKSPACE}" &&
+						run_aipod init "${AIPOD_NAME}" >/dev/null 2>&1 &&
+						run_aipod map >/dev/null 2>&1 &&
+						cd "${COPY_SOURCE}" &&
+						run_aipod init "${AIPOD_NAME}" >/dev/null 2>&1 &&
+						run_aipod map >/dev/null 2>&1
+				}
+				When call shared_init
+				The status should be success
+				Assert container_mounts_is "${AIPOD_NAME}" "$(printf '%s:/home/developer/workspace\n%s:/home/developer/copy-source' "${WORKSPACE}" "${COPY_SOURCE}")"
+			End
+
+			It 'inherits the global config and overrides only HOSTNAME'
+				inherit_init() {
+					use_xdg_config
+					printf 'CREATE_ARGS="--userns=keep-id"\n' >> "${AIPOD_CONFIG_DIR}/aipod.conf"
+					cd "${WORKSPACE}" && run_aipod init 'My Project!' && cat "${AIPOD_CONFIG_DIR}"/dirs/*/aipod.conf
+				}
+				When call inherit_init
+				The status should be success
+				The stderr should include 'for container my-project'
+				The output should include 'CREATE_ARGS="--userns=keep-id"'
+				The output should include 'HOSTNAME=my-project'
+				The output should not include "HOSTNAME=${AIPOD_NAME}"
+			End
+
+			It 'keeps an existing per-directory config on a second init'
+				repeat_init() {
+					use_xdg_config
+					cd "${WORKSPACE}" &&
+						run_aipod init "${AIPOD_NAME}-a" >/dev/null 2>&1 &&
+						run_aipod init "${AIPOD_NAME}-b" &&
+						cat "${AIPOD_CONFIG_DIR}"/dirs/*/aipod.conf
+				}
+				When call repeat_init
+				The status should be success
+				The stderr should include 'config already exists'
+				The output should include "HOSTNAME=${AIPOD_NAME}-a"
+				The output should not include "HOSTNAME=${AIPOD_NAME}-b"
+			End
+
+			It 'rejects a name without any usable characters'
+				When call run_aipod init '!!!'
+				The status should eq 1
+				The stderr should include 'invalid container name'
+			End
+		End
 
 		Describe 'when podman is unavailable'
 			Parameters

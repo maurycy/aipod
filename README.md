@@ -66,6 +66,19 @@ Copying:
     aipod cp <file|directory>       Copy file/directory to container
 ```
 
+## Multiple containers
+
+By default every directory shares one container configured in `~/.config/aipod/aipod.conf`. Run `aipod init` in a directory to give it its own container, named after the directory:
+
+```sh
+cd ~/project-a && aipod init && aipod map && aipod up
+cd ~/project-b && aipod init && aipod map && aipod up
+```
+
+`aipod init <name>` picks the name instead, and directories initialized with the same name share one container with all their mounts. The new config copies the global `aipod.conf` with its own `HOSTNAME`, and lives in `~/.config/aipod/dirs/`. Mounts and ports are kept per container in `~/.config/aipod/containers/<name>/`.
+
+`aipod rebuild` recreates the container and image without the build cache, for example to update the installed agents, and keeps the mounts and ports.
+
 ## Requirements
 
 - [podman](https://podman.io/)

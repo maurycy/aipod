@@ -32,6 +32,7 @@ CONTAINERFILE=""
 CAP_ADD=""
 CREATE_ARGS=""
 PASS_ENV=""
+BUILD_NO_CACHE=""
 
 usage() {
 	cat <<EOF
@@ -40,8 +41,10 @@ aipod: manage development containers
 Usage: aipod [command] [options]
 
 Commands:
+    init        Create a separate config and container for the current directory
     up          Start container interactively (default if no command given)
     down        Stop the container
+    rebuild     Recreate container and image without cache (keeps mounts and ports)
     status      Show container status
     clean       Remove container, image, mount and ports config
 
@@ -55,6 +58,10 @@ Commands:
 
     config      Edit aipod.conf
     help        Show this help
+
+Init usage:
+    aipod init                      Name the container after the current directory
+    aipod init <name>               Use <name>; directories sharing a name share a container
 
 Mapping directories:
     aipod map                       Map current directory to container
@@ -90,12 +97,19 @@ die() {
 
 is_command() { type "$1" >/dev/null 2>&1; }
 
+# Per-directory config created by `aipod init`
+dir_config_dir() { printf "%s/dirs/%s" "${CONFIG_DIR}" "$(pwd | sed "s|/|-|g; s/^-//")"; }
+
 # Find config directory containing aipod.conf
 # Checks script directory first (for development), then XDG config directory
 find_config_dir() {
 	script_dir="$(cd "$(dirname "$0")" && pwd)"
 	if [ -f "${script_dir}/aipod.conf" ]; then
 		printf '%s' "${script_dir}"
+		return 0
+	fi
+	if [ -f "$(dir_config_dir)/aipod.conf" ]; then
+		dir_config_dir
 		return 0
 	fi
 	if [ -f "${CONFIG_DIR}/aipod.conf" ]; then
@@ -116,6 +130,12 @@ load_config() {
 	CONTAINER_NAME="${HOSTNAME:-aipod}"
 	IMAGE_NAME="${HOSTNAME:-aipod}"
 	USERNAME="${USERNAME:-developer}"
+
+	# Per-directory configs keep mounts and ports per container
+	if [ "${config_dir}" = "$(dir_config_dir)" ]; then
+		MOUNTS_FILE="${CONFIG_DIR}/containers/${CONTAINER_NAME}/mounts"
+		PORTS_FILE="${CONFIG_DIR}/containers/${CONTAINER_NAME}/ports"
+	fi
 
 	# Resolve CONTAINERFILE: config value, or search DATA_DIR
 	if [ -n "${CONTAINERFILE}" ]; then
@@ -142,7 +162,7 @@ load_config() {
 	fi
 }
 
-ensure_config_dir() { [ -d "${CONFIG_DIR}" ] || mkdir -p "${CONFIG_DIR}"; }
+ensure_config_dir() { mkdir -p "$(dirname "${MOUNTS_FILE}")"; }
 
 config_entry_exists() {
 	[ -f "$1" ] || return 1
@@ -291,6 +311,7 @@ cmd_build() {
 	if ! image_exists; then
 		log info "building image ${IMAGE_NAME}"
 		podman build \
+			${BUILD_NO_CACHE:+--no-cache} \
 			--build-arg USERNAME="${USERNAME}" \
 			--build-arg CHEZMOI_DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO}" \
 			--build-arg USE_RUST="${USE_RUST}" \
@@ -339,6 +360,15 @@ cmd_clean() {
 	rm -f "${MOUNTS_FILE}"
 	log info "removing ports config"
 	rm -f "${PORTS_FILE}"
+}
+
+cmd_rebuild() {
+	log info "removing container ${CONTAINER_NAME} and its images"
+	podman rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+	podman rmi "${IMAGE_NAME}:snapshot" >/dev/null 2>&1 || true
+	podman rmi "${IMAGE_NAME}" >/dev/null 2>&1 || true
+	BUILD_NO_CACHE="true"
+	cmd_up
 }
 
 cmd_run() {
@@ -507,6 +537,25 @@ cmd_config() {
 	"${editor}" "${config_dir}/aipod.conf"
 }
 
+cmd_init() {
+	dir_config="$(dir_config_dir)"
+	if [ -f "${dir_config}/aipod.conf" ]; then
+		log info "config already exists: ${dir_config}/aipod.conf"
+		return 0
+	fi
+
+	name="$(printf '%s' "${1:-$(basename "$(pwd)")}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//; s/-*$//')"
+	[ -n "${name}" ] || die error "invalid container name: ${1:-}"
+
+	# Inherit the global config, overriding only HOSTNAME
+	mkdir -p "${dir_config}"
+	if [ -f "${CONFIG_DIR}/aipod.conf" ]; then
+		grep -v '^HOSTNAME=' "${CONFIG_DIR}/aipod.conf" > "${dir_config}/aipod.conf" || true
+	fi
+	printf 'HOSTNAME=%s\n' "${name}" >> "${dir_config}/aipod.conf"
+	log info "created ${dir_config}/aipod.conf for container ${name}"
+}
+
 show_config_entries() {
 	printf '%s:\n' "$1"
 	if [ -f "$2" ]; then
@@ -520,6 +569,7 @@ show_config_entries() {
 }
 
 cmd_status() {
+	printf 'config:    %s/aipod.conf\n' "$(find_config_dir)"
 	if container_exists; then
 		if container_running; then
 			printf 'container: running\n'
@@ -571,16 +621,17 @@ main() {
 	help | usage | -h | --help)
 		usage
 		;;
-	up | down | clean | run | cp | status | map | unmap | port | close | config)
+	up | down | clean | run | cp | status | map | unmap | port | close | config | init | rebuild)
 		;;
 	*)
 		log error "unknown command: ${cmd}"
 		usage
 		;;
 	esac
-	if [ "${cmd}" != "config" ]; then
-		podman info >/dev/null
-	fi
+	case "${cmd}" in
+	config | init) ;;
+	*) podman info >/dev/null ;;
+	esac
 	"cmd_${cmd}" "$@"
 }
 
